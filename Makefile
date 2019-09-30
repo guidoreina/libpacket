@@ -8,7 +8,7 @@ LIBRARY=libpacket.so
 
 OBJS = pcap/reader.o pcap/ip/analyzer.o \
        net/ip/fragmented_packet.o net/ip/fragmented_packets.o net/ip/parser.o \
-       net/ip/packets.o
+       net/ip/packets.o net/ip/endpoint.o
 
 DEPS:= ${OBJS:%.o=%.d}
 
