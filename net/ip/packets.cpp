@@ -28,7 +28,7 @@ bool net::ip::packets::add(packet* pkt)
 
     return true;
   } else {
-    size_t size = (_M_size > 0) ? _M_size * 2 : packet_allocation;
+    const size_t size = (_M_size > 0) ? _M_size * 2 : packet_allocation;
 
     packet** packets;
     if ((packets = static_cast<packet**>(
