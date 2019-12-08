@@ -6,7 +6,7 @@ LDFLAGS=-shared
 MAKEDEPEND=${CC} -MM
 LIBRARY=libpacket.so
 
-OBJS = string/buffer.o memory/file.o fs/file.o pcap/reader.o \
+OBJS = util/hash.o string/buffer.o memory/file.o fs/file.o pcap/reader.o \
        pcap/ip/analyzer.o pcap/ip/tcp/connection/analyzer.o \
        net/ip/fragmented_packet.o net/ip/fragmented_packets.o net/ip/parser.o \
        net/ip/packets.o net/ip/endpoint.o net/ip/tcp/connection.o \

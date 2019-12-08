@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "util/hash.h"
 
 namespace net {
   namespace ip {
@@ -37,6 +38,12 @@ namespace net {
 
         // Get address family.
         int address_family() const;
+
+        // Compute hash.
+        uint32_t hash() const;
+        static uint32_t hash(uint32_t addr);
+        static uint32_t hash(struct in_addr addr);
+        static uint32_t hash(const struct in6_addr& addr);
 
       private:
         // Address family (either AF_INET or AF_INET6).
@@ -145,6 +152,38 @@ namespace net {
     inline int address::address_family() const
     {
       return _M_address_family;
+    }
+
+    inline uint32_t address::hash() const
+    {
+      static constexpr const uint32_t initval = 0;
+
+      return (_M_address_family == AF_INET) ?
+               _M_address[0] :
+               util::hash::hash_3words(_M_address[0] ^ _M_address[1],
+                                       _M_address[2],
+                                       _M_address[3],
+                                       initval);
+    }
+
+    inline uint32_t address::hash(uint32_t addr)
+    {
+      return addr;
+    }
+
+    inline uint32_t address::hash(struct in_addr addr)
+    {
+      return addr.s_addr;
+    }
+
+    inline uint32_t address::hash(const struct in6_addr& addr)
+    {
+      static constexpr const uint32_t initval = 0;
+
+      return util::hash::hash_3words(addr.s6_addr32[0] ^ addr.s6_addr32[1],
+                                     addr.s6_addr32[2],
+                                     addr.s6_addr32[3],
+                                     initval);
     }
   }
 }
