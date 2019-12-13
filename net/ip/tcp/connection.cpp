@@ -3,7 +3,7 @@
 
 bool net::ip::tcp::connection::process(direction dir,
                                        uint8_t flags,
-                                       state& s,
+                                       enum state& s,
                                        originator& active_closer)
 {
   // http://cradpdf.drdc-rddc.gc.ca/PDFS/unc25/p520460.pdf

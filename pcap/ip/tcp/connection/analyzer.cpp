@@ -11,7 +11,7 @@ const_iterator::message(ip::analyzer& analyzer,
   static constexpr const size_t max_gap_size = 1 * 1024ul * 1024ul;
 
   // TCP connection state.
-  net::ip::tcp::connection::state
+  enum net::ip::tcp::connection::state
     tcpstate = net::ip::tcp::connection::state::data_transfer;
 
   // Who initiates the connection shutdown?
@@ -183,7 +183,7 @@ bool pcap::ip::tcp::connection::analyzer::find_syn_ack(const_iterator& it)
 
       // Process packet.
       if (it._M_connection.process(dir, it._M_it_syn_ack->tcp()->th_flags)) {
-        switch (it._M_connection.get_state()) {
+        switch (it._M_connection.state()) {
           case net::ip::tcp::connection::state::connection_established:
             return (ntohl(it._M_it_syn_ack->tcp()->ack_seq) ==
                     static_cast<uint32_t>(ntohl(it._M_it_syn->tcp()->seq) + 1));
@@ -235,7 +235,7 @@ bool pcap::ip::tcp::connection::analyzer::find_ack(const_iterator& it)
 
       // Process packet.
       if (it._M_connection.process(dir, it._M_it_ack->tcp()->th_flags)) {
-        switch (it._M_connection.get_state()) {
+        switch (it._M_connection.state()) {
           case net::ip::tcp::connection::state::data_transfer:
             return ((ntohl(it._M_it_ack->tcp()->ack_seq) ==
                      static_cast<uint32_t>(

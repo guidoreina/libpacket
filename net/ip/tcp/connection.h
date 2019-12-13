@@ -57,7 +57,7 @@ namespace net {
           // Process packet.
           static bool process(direction dir,
                               uint8_t flags,
-                              state& s,
+                              enum state& s,
                               originator& active_closer);
 
           bool process(direction dir, uint8_t flags);
@@ -69,7 +69,7 @@ namespace net {
           const endpoint& server() const;
 
           // Get connection state.
-          state get_state() const;
+          enum state state() const;
 
         private:
           // Client.
@@ -79,7 +79,7 @@ namespace net {
           endpoint _M_server;
 
           // Connection state.
-          state _M_state;
+          enum state _M_state;
 
           // Who initiates the connection shutdown?
           originator _M_active_closer;
@@ -205,7 +205,7 @@ namespace net {
         return _M_server;
       }
 
-      inline connection::state connection::get_state() const
+      inline enum connection::state connection::state() const
       {
         return _M_state;
       }
