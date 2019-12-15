@@ -80,6 +80,9 @@ namespace net {
           // Remove expired connections.
           void remove_expired(uint64_t now);
 
+          // Get maximum number of connections.
+          size_t maximum_number_connections() const;
+
         private:
           static constexpr const size_t connection_allocation = 1024;
 
@@ -210,6 +213,11 @@ namespace net {
                                                   direction& dir)
       {
         return process_(iphdr, tcphdr, now, dir);
+      }
+
+      inline size_t connections::maximum_number_connections() const
+      {
+        return _M_max_connections;
       }
 
       inline connections::stack::~stack()
