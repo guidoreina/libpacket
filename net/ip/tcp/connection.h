@@ -13,6 +13,9 @@ namespace net {
       // TCP connection.
       class connection {
         public:
+          // TCP time wait.
+          static uint64_t time_wait;
+
           // Connection state:
           // http://cradpdf.drdc-rddc.gc.ca/PDFS/unc25/p520460.pdf
           enum class state {
@@ -26,15 +29,29 @@ namespace net {
 
           // Constructor.
           connection() = default;
-          connection(const struct iphdr* iphdr, const struct tcphdr* tcphdr);
-          connection(const struct ip6_hdr* iphdr, const struct tcphdr* tcphdr);
+          connection(const struct iphdr* iphdr,
+                     const struct tcphdr* tcphdr,
+                     enum state s,
+                     uint64_t timestamp);
+
+          connection(const struct ip6_hdr* iphdr,
+                     const struct tcphdr* tcphdr,
+                     enum state s,
+                     uint64_t timestamp);
 
           // Destructor.
           ~connection() = default;
 
           // Assign.
-          void assign(const struct iphdr* iphdr, const struct tcphdr* tcphdr);
-          void assign(const struct ip6_hdr* iphdr, const struct tcphdr* tcphdr);
+          void assign(const struct iphdr* iphdr,
+                      const struct tcphdr* tcphdr,
+                      enum state s,
+                      uint64_t timestamp);
+
+          void assign(const struct ip6_hdr* iphdr,
+                      const struct tcphdr* tcphdr,
+                      enum state s,
+                      uint64_t timestamp);
 
           // Equal operator.
           bool operator==(const connection& conn) const;
@@ -55,12 +72,7 @@ namespace net {
                      direction& dir) const;
 
           // Process packet.
-          static bool process(direction dir,
-                              uint8_t flags,
-                              enum state& s,
-                              originator& active_closer);
-
-          bool process(direction dir, uint8_t flags);
+          bool process(direction dir, uint8_t flags, uint64_t timestamp);
 
           // Get client.
           const endpoint& client() const;
@@ -70,6 +82,18 @@ namespace net {
 
           // Get connection state.
           enum state state() const;
+
+          // Set connection state.
+          void state(enum state s);
+
+          // Get creation timestamp.
+          uint64_t creation_timestamp() const;
+
+          // Get timestamp of the last packet.
+          uint64_t last_timestamp() const;
+
+          // Touch connection.
+          void touch(uint64_t timestamp);
 
         private:
           // Client.
@@ -84,43 +108,63 @@ namespace net {
           // Who initiates the connection shutdown?
           originator _M_active_closer;
 
+          // Timestamp.
+          struct {
+            uint64_t creation;
+            uint64_t last_packet;
+          } _M_timestamp;
+
           // Disable copy constructor and assignment operator.
           connection(const connection&) = delete;
           connection& operator=(const connection&) = delete;
       };
 
       inline connection::connection(const struct iphdr* iphdr,
-                                    const struct tcphdr* tcphdr)
+                                    const struct tcphdr* tcphdr,
+                                    enum state s,
+                                    uint64_t timestamp)
         : _M_client(iphdr->saddr, ntohs(tcphdr->source)),
           _M_server(iphdr->daddr, ntohs(tcphdr->dest)),
-          _M_state(state::connection_requested)
+          _M_state(s),
+          _M_timestamp{timestamp}
       {
       }
 
       inline connection::connection(const struct ip6_hdr* iphdr,
-                                    const struct tcphdr* tcphdr)
+                                    const struct tcphdr* tcphdr,
+                                    enum state s,
+                                    uint64_t timestamp)
         : _M_client(iphdr->ip6_src, ntohs(tcphdr->source)),
           _M_server(iphdr->ip6_dst, ntohs(tcphdr->dest)),
-          _M_state(state::connection_requested)
+          _M_state(s),
+          _M_timestamp{timestamp}
       {
       }
 
       inline void connection::assign(const struct iphdr* iphdr,
-                                     const struct tcphdr* tcphdr)
+                                     const struct tcphdr* tcphdr,
+                                     enum state s,
+                                     uint64_t timestamp)
       {
         _M_client.assign(iphdr->saddr, ntohs(tcphdr->source));
         _M_server.assign(iphdr->daddr, ntohs(tcphdr->dest));
 
-        _M_state = state::connection_requested;
+        _M_state = s;
+
+        _M_timestamp.creation = timestamp;
       }
 
       inline void connection::assign(const struct ip6_hdr* iphdr,
-                                     const struct tcphdr* tcphdr)
+                                     const struct tcphdr* tcphdr,
+                                     enum state s,
+                                     uint64_t timestamp)
       {
         _M_client.assign(iphdr->ip6_src, ntohs(tcphdr->source));
         _M_server.assign(iphdr->ip6_dst, ntohs(tcphdr->dest));
 
-        _M_state = state::connection_requested;
+        _M_state = s;
+
+        _M_timestamp.creation = timestamp;
       }
 
       inline bool connection::operator==(const connection& conn) const
@@ -190,11 +234,6 @@ namespace net {
         }
       }
 
-      inline bool connection::process(direction dir, uint8_t flags)
-      {
-        return process(dir, flags, _M_state, _M_active_closer);
-      }
-
       inline const endpoint& connection::client() const
       {
         return _M_client;
@@ -208,6 +247,26 @@ namespace net {
       inline enum connection::state connection::state() const
       {
         return _M_state;
+      }
+
+      inline void connection::state(enum state s)
+      {
+        _M_state = s;
+      }
+
+      inline uint64_t connection::creation_timestamp() const
+      {
+        return _M_timestamp.creation;
+      }
+
+      inline uint64_t connection::last_timestamp() const
+      {
+        return _M_timestamp.last_packet;
+      }
+
+      inline void connection::touch(uint64_t timestamp)
+      {
+        _M_timestamp.last_packet = timestamp;
       }
     }
   }

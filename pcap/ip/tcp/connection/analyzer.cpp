@@ -10,12 +10,10 @@ const_iterator::message(ip::analyzer& analyzer,
   // Maximum gap size.
   static constexpr const size_t max_gap_size = 1 * 1024ul * 1024ul;
 
-  // TCP connection state.
-  enum net::ip::tcp::connection::state
-    tcpstate = net::ip::tcp::connection::state::data_transfer;
+  _M_connection.state(net::ip::tcp::connection::state::data_transfer);
 
-  // Who initiates the connection shutdown?
-  net::ip::tcp::originator active_closer;
+  // Set timestamp of the last packet.
+  _M_connection.touch(_M_it_ack->timestamp());
 
   // Get IP version.
   const net::ip::version ip_version = syn()->version();
@@ -30,8 +28,10 @@ const_iterator::message(ip::analyzer& analyzer,
   ip::analyzer::const_iterator it = _M_it_ack;
 
   // While the connection has not been closed and there are packets...
-  while (((tcpstate == net::ip::tcp::connection::state::data_transfer) ||
-          (tcpstate == net::ip::tcp::connection::state::closing)) &&
+  while (((_M_connection.state() ==
+           net::ip::tcp::connection::state::data_transfer) ||
+          (_M_connection.state() ==
+           net::ip::tcp::connection::state::closing)) &&
          (analyzer.next(net::ip::protocol::tcp, it))) {
     // If the IP versions match...
     if (ip_version == it->version()) {
@@ -51,10 +51,7 @@ const_iterator::message(ip::analyzer& analyzer,
       }
 
       // Process packet.
-      if (net::ip::tcp::connection::process(dir,
-                                            tcphdr->th_flags,
-                                            tcpstate,
-                                            active_closer)) {
+      if (_M_connection.process(dir, tcphdr->th_flags, it->timestamp())) {
         // If the current packet has the expected direction...
         if (pktdir == dir) {
           // If the current packet has payload...
@@ -137,9 +134,17 @@ bool pcap::ip::tcp::connection::analyzer::find_syn(const_iterator& it)
         net::ip::tcp::syn) {
       // Initialize TCP connection.
       if (it._M_it_syn->version() == net::ip::version::v4) {
-        it._M_connection.assign(it._M_it_syn->ipv4(), it._M_it_syn->tcp());
+        it._M_connection.assign(it._M_it_syn->ipv4(),
+                                it._M_it_syn->tcp(),
+                                net::ip::tcp::connection::
+                                  state::connection_requested,
+                                it._M_it_syn->timestamp());
       } else {
-        it._M_connection.assign(it._M_it_syn->ipv6(), it._M_it_syn->tcp());
+        it._M_connection.assign(it._M_it_syn->ipv6(),
+                                it._M_it_syn->tcp(),
+                                net::ip::tcp::connection::
+                                  state::connection_requested,
+                                it._M_it_syn->timestamp());
       }
 
       return true;
@@ -182,7 +187,9 @@ bool pcap::ip::tcp::connection::analyzer::find_syn_ack(const_iterator& it)
       }
 
       // Process packet.
-      if (it._M_connection.process(dir, it._M_it_syn_ack->tcp()->th_flags)) {
+      if (it._M_connection.process(dir,
+                                   it._M_it_syn_ack->tcp()->th_flags,
+                                   it._M_it_syn_ack->timestamp())) {
         switch (it._M_connection.state()) {
           case net::ip::tcp::connection::state::connection_established:
             return (ntohl(it._M_it_syn_ack->tcp()->ack_seq) ==
@@ -234,7 +241,9 @@ bool pcap::ip::tcp::connection::analyzer::find_ack(const_iterator& it)
       }
 
       // Process packet.
-      if (it._M_connection.process(dir, it._M_it_ack->tcp()->th_flags)) {
+      if (it._M_connection.process(dir,
+                                   it._M_it_ack->tcp()->th_flags,
+                                   it._M_it_ack->timestamp())) {
         switch (it._M_connection.state()) {
           case net::ip::tcp::connection::state::data_transfer:
             return ((ntohl(it._M_it_ack->tcp()->ack_seq) ==
