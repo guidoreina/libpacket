@@ -10,7 +10,7 @@ OBJS = util/hash.o string/buffer.o memory/file.o fs/file.o pcap/reader.o \
        pcap/ip/analyzer.o pcap/ip/tcp/connection/analyzer.o \
        net/ip/fragmented_packet.o net/ip/fragmented_packets.o net/ip/parser.o \
        net/ip/packets.o net/ip/endpoint.o net/ip/tcp/connection.o \
-       net/ip/tcp/message.o net/ip/dns/message.o
+       net/ip/tcp/connections.o net/ip/tcp/message.o net/ip/dns/message.o
 
 DEPS:= ${OBJS:%.o=%.d}
 
