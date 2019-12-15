@@ -134,22 +134,14 @@ net::ip::tcp::connections::process_(const IpHeader* iphdr,
         // If the ACK bit has not been set...
         if ((tcphdr->th_flags & ack) == 0) {
           state = connection::state::connection_requested;
-
-          dir = direction::from_client;
         } else {
           state = connection::state::connection_established;
-
-          dir = direction::from_server;
         }
 
         timestamp = now;
       } else {
         state = connection::state::data_transfer;
         timestamp = 0;
-
-        dir = (ntohs(tcphdr->dest) < ntohs(tcphdr->source)) ?
-                direction::from_client :
-                direction::from_server;
       }
 
       // Initialize connection.
@@ -160,6 +152,9 @@ net::ip::tcp::connections::process_(const IpHeader* iphdr,
 
       // Increment number of connections.
       _M_nconns++;
+
+      // Save direction.
+      dir = direction::from_client;
 
       return conn;
     }
