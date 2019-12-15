@@ -56,7 +56,8 @@ template<typename IpHeader>
 const net::ip::tcp::connection*
 net::ip::tcp::connections::process_(const IpHeader* iphdr,
                                     const tcphdr* tcphdr,
-                                    uint64_t now)
+                                    uint64_t now,
+                                    direction& dir)
 {
   const uint32_t bucket = net::ip::tcp::hash(iphdr, tcphdr) & _M_mask;
 
@@ -76,7 +77,6 @@ net::ip::tcp::connections::process_(const IpHeader* iphdr,
       // If the connection has not expired...
       if (conn->last_timestamp() + _M_timeout > now) {
         // If it is the connection we are looking for...
-        direction dir;
         if (conn->match(iphdr, tcphdr, dir)) {
           // Process TCP segment.
           if (conn->process(dir, tcphdr->th_flags, now)) {
@@ -134,14 +134,22 @@ net::ip::tcp::connections::process_(const IpHeader* iphdr,
         // If the ACK bit has not been set...
         if ((tcphdr->th_flags & ack) == 0) {
           state = connection::state::connection_requested;
+
+          dir = direction::from_client;
         } else {
           state = connection::state::connection_established;
+
+          dir = direction::from_server;
         }
 
         timestamp = now;
       } else {
         state = connection::state::data_transfer;
         timestamp = 0;
+
+        dir = (ntohs(tcphdr->dest) < ntohs(tcphdr->source)) ?
+                direction::from_client :
+                direction::from_server;
       }
 
       // Initialize connection.

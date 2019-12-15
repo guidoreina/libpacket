@@ -63,9 +63,19 @@ namespace net {
                                     const tcphdr* tcphdr,
                                     uint64_t now);
 
+          const connection* process(const iphdr* iphdr,
+                                    const tcphdr* tcphdr,
+                                    uint64_t now,
+                                    direction& dir);
+
           const connection* process(const ip6_hdr* iphdr,
                                     const tcphdr* tcphdr,
                                     uint64_t now);
+
+          const connection* process(const ip6_hdr* iphdr,
+                                    const tcphdr* tcphdr,
+                                    uint64_t now,
+                                    direction& dir);
 
           // Remove expired connections.
           void remove_expired(uint64_t now);
@@ -157,7 +167,8 @@ namespace net {
           template<typename IpHeader>
           const connection* process_(const IpHeader* iphdr,
                                      const tcphdr* tcphdr,
-                                     uint64_t now);
+                                     uint64_t now,
+                                     direction& dir);
 
           // Disable copy constructor and assignment operator.
           connections(const connections&) = delete;
@@ -173,14 +184,32 @@ namespace net {
                                                   const tcphdr* tcphdr,
                                                   uint64_t now)
       {
-        return process_(iphdr, tcphdr, now);
+        direction dir;
+        return process_(iphdr, tcphdr, now, dir);
+      }
+
+      const connection* tcp::connections::process(const iphdr* iphdr,
+                                                  const tcphdr* tcphdr,
+                                                  uint64_t now,
+                                                  direction& dir)
+      {
+        return process_(iphdr, tcphdr, now, dir);
       }
 
       const connection* tcp::connections::process(const ip6_hdr* iphdr,
                                                   const tcphdr* tcphdr,
                                                   uint64_t now)
       {
-        return process_(iphdr, tcphdr, now);
+        direction dir;
+        return process_(iphdr, tcphdr, now, dir);
+      }
+
+      const connection* tcp::connections::process(const ip6_hdr* iphdr,
+                                                  const tcphdr* tcphdr,
+                                                  uint64_t now,
+                                                  direction& dir)
+      {
+        return process_(iphdr, tcphdr, now, dir);
       }
 
       inline connections::stack::~stack()
