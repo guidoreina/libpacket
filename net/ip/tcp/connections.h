@@ -141,6 +141,9 @@ namespace net {
           // Time wait.
           uint64_t _M_time_wait;
 
+          // Next connection id.
+          size_t _M_connid = 0;
+
           // Get free connection.
           connection* get_free_connection();
 

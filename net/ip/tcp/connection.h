@@ -95,6 +95,12 @@ namespace net {
           // Touch connection.
           void touch(uint64_t timestamp);
 
+          // Get connection id.
+          size_t id() const;
+
+          // Set connection id.
+          void id(size_t n);
+
         private:
           // Client.
           endpoint _M_client;
@@ -113,6 +119,9 @@ namespace net {
             uint64_t creation;
             uint64_t last_packet;
           } _M_timestamp;
+
+          // Connection id.
+          size_t _M_id;
 
           // Disable copy constructor and assignment operator.
           connection(const connection&) = delete;
@@ -267,6 +276,16 @@ namespace net {
       inline void connection::touch(uint64_t timestamp)
       {
         _M_timestamp.last_packet = timestamp;
+      }
+
+      inline size_t connection::id() const
+      {
+        return _M_id;
+      }
+
+      inline void connection::id(size_t n)
+      {
+        _M_id = n;
       }
     }
   }

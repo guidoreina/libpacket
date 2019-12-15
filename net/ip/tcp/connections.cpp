@@ -260,7 +260,10 @@ bool net::ip::tcp::connections::allocate_connections(size_t count)
       // If the connection could be created.
       if (conn) {
         // Add connection to the free pool.
-        if (!_M_free.push(conn)) {
+        if (_M_free.push(conn)) {
+          // Set connection id.
+          conn->id(_M_connid++);
+        } else {
           free(conn);
           break;
         }
