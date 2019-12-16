@@ -61,20 +61,20 @@ namespace net {
           // Process TCP segment.
           const connection* process(const iphdr* iphdr,
                                     const tcphdr* tcphdr,
-                                    uint64_t now);
+                                    uint64_t timestamp);
 
           const connection* process(const iphdr* iphdr,
                                     const tcphdr* tcphdr,
-                                    uint64_t now,
+                                    uint64_t timestamp,
                                     direction& dir);
 
           const connection* process(const ip6_hdr* iphdr,
                                     const tcphdr* tcphdr,
-                                    uint64_t now);
+                                    uint64_t timestamp);
 
           const connection* process(const ip6_hdr* iphdr,
                                     const tcphdr* tcphdr,
-                                    uint64_t now,
+                                    uint64_t timestamp,
                                     direction& dir);
 
           // Remove expired connections.
@@ -170,7 +170,7 @@ namespace net {
           template<typename IpHeader>
           const connection* process_(const IpHeader* iphdr,
                                      const tcphdr* tcphdr,
-                                     uint64_t now,
+                                     uint64_t timestamp,
                                      direction& dir);
 
           // Disable copy constructor and assignment operator.
@@ -185,34 +185,34 @@ namespace net {
 
       const connection* tcp::connections::process(const iphdr* iphdr,
                                                   const tcphdr* tcphdr,
-                                                  uint64_t now)
+                                                  uint64_t timestamp)
       {
         direction dir;
-        return process_(iphdr, tcphdr, now, dir);
+        return process_(iphdr, tcphdr, timestamp, dir);
       }
 
       const connection* tcp::connections::process(const iphdr* iphdr,
                                                   const tcphdr* tcphdr,
-                                                  uint64_t now,
+                                                  uint64_t timestamp,
                                                   direction& dir)
       {
-        return process_(iphdr, tcphdr, now, dir);
+        return process_(iphdr, tcphdr, timestamp, dir);
       }
 
       const connection* tcp::connections::process(const ip6_hdr* iphdr,
                                                   const tcphdr* tcphdr,
-                                                  uint64_t now)
+                                                  uint64_t timestamp)
       {
         direction dir;
-        return process_(iphdr, tcphdr, now, dir);
+        return process_(iphdr, tcphdr, timestamp, dir);
       }
 
       const connection* tcp::connections::process(const ip6_hdr* iphdr,
                                                   const tcphdr* tcphdr,
-                                                  uint64_t now,
+                                                  uint64_t timestamp,
                                                   direction& dir)
       {
-        return process_(iphdr, tcphdr, now, dir);
+        return process_(iphdr, tcphdr, timestamp, dir);
       }
 
       inline size_t connections::maximum_number_connections() const

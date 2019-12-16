@@ -56,7 +56,7 @@ template<typename IpHeader>
 const net::ip::tcp::connection*
 net::ip::tcp::connections::process_(const IpHeader* iphdr,
                                     const tcphdr* tcphdr,
-                                    uint64_t now,
+                                    uint64_t timestamp,
                                     direction& dir)
 {
   const uint32_t bucket = net::ip::tcp::hash(iphdr, tcphdr) & _M_mask;
@@ -73,13 +73,13 @@ net::ip::tcp::connections::process_(const IpHeader* iphdr,
     // If the connection has not been closed or the time wait interval has not
     // elapsed yet...
     if ((conn->state() != connection::state::closed) ||
-        (conn->last_timestamp() + _M_time_wait > now)) {
+        (conn->last_timestamp() + _M_time_wait > timestamp)) {
       // If the connection has not expired...
-      if (conn->last_timestamp() + _M_timeout > now) {
+      if (conn->last_timestamp() + _M_timeout > timestamp) {
         // If it is the connection we are looking for...
         if (conn->match(iphdr, tcphdr, dir)) {
           // Process TCP segment.
-          if (conn->process(dir, tcphdr->th_flags, now)) {
+          if (conn->process(dir, tcphdr->th_flags, timestamp)) {
             return conn;
           }
 
@@ -126,8 +126,10 @@ net::ip::tcp::connections::process_(const IpHeader* iphdr,
   if (conn) {
     // Add connection to the bucket.
     if (_M_conns[bucket].push(conn)) {
+      // Set timestamp of the last packet.
+      conn->touch(timestamp);
+
       enum connection::state state;
-      uint64_t timestamp;
 
       // If the SYN bit has been set...
       if ((tcphdr->th_flags & syn) != 0) {
@@ -137,8 +139,6 @@ net::ip::tcp::connections::process_(const IpHeader* iphdr,
         } else {
           state = connection::state::connection_established;
         }
-
-        timestamp = now;
       } else {
         state = connection::state::data_transfer;
         timestamp = 0;
@@ -146,9 +146,6 @@ net::ip::tcp::connections::process_(const IpHeader* iphdr,
 
       // Initialize connection.
       conn->assign(iphdr, tcphdr, state, timestamp);
-
-      // Set timestamp of the last packet.
-      conn->touch(now);
 
       // Increment number of connections.
       _M_nconns++;
