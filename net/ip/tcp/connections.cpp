@@ -1,6 +1,5 @@
 #include <new>
 #include "net/ip/tcp/connections.h"
-#include "net/ip/tcp/hash.h"
 #include "net/ip/tcp/flags.h"
 
 void net::ip::tcp::connections::clear()
@@ -52,14 +51,91 @@ bool net::ip::tcp::connections::init(size_t size,
   return false;
 }
 
+const net::ip::tcp::connection*
+net::ip::tcp::connections::process(const iphdr* iphdr,
+                                   const tcphdr* tcphdr,
+                                   uint64_t timestamp)
+{
+  direction dir;
+  return process_(hash(iphdr, tcphdr), iphdr, tcphdr, timestamp, dir);
+}
+
+const net::ip::tcp::connection*
+net::ip::tcp::connections::process(const iphdr* iphdr,
+                                   const tcphdr* tcphdr,
+                                   uint64_t timestamp,
+                                   direction& dir)
+{
+  return process_(hash(iphdr, tcphdr), iphdr, tcphdr, timestamp, dir);
+}
+
+const net::ip::tcp::connection*
+net::ip::tcp::connections::process(const ip6_hdr* iphdr,
+                                   const tcphdr* tcphdr,
+                                   uint64_t timestamp)
+{
+  direction dir;
+  return process_(hash(iphdr, tcphdr), iphdr, tcphdr, timestamp, dir);
+}
+
+const net::ip::tcp::connection*
+net::ip::tcp::connections::process(const ip6_hdr* iphdr,
+                                   const tcphdr* tcphdr,
+                                   uint64_t timestamp,
+                                   direction& dir)
+{
+  return process_(hash(iphdr, tcphdr), iphdr, tcphdr, timestamp, dir);
+}
+
+const net::ip::tcp::connection*
+net::ip::tcp::connections::process(uint32_t hash,
+                                   const iphdr* iphdr,
+                                   const tcphdr* tcphdr,
+                                   uint64_t timestamp)
+{
+  direction dir;
+  return process_(hash, iphdr, tcphdr, timestamp, dir);
+}
+
+const net::ip::tcp::connection*
+net::ip::tcp::connections::process(uint32_t hash,
+                                   const iphdr* iphdr,
+                                   const tcphdr* tcphdr,
+                                   uint64_t timestamp,
+                                   direction& dir)
+{
+  return process_(hash, iphdr, tcphdr, timestamp, dir);
+}
+
+const net::ip::tcp::connection*
+net::ip::tcp::connections::process(uint32_t hash,
+                                   const ip6_hdr* iphdr,
+                                   const tcphdr* tcphdr,
+                                   uint64_t timestamp)
+{
+  direction dir;
+  return process_(hash, iphdr, tcphdr, timestamp, dir);
+}
+
+const net::ip::tcp::connection*
+net::ip::tcp::connections::process(uint32_t hash,
+                                   const ip6_hdr* iphdr,
+                                   const tcphdr* tcphdr,
+                                   uint64_t timestamp,
+                                   direction& dir)
+{
+  return process_(hash, iphdr, tcphdr, timestamp, dir);
+}
+
 template<typename IpHeader>
 const net::ip::tcp::connection*
-net::ip::tcp::connections::process_(const IpHeader* iphdr,
+net::ip::tcp::connections::process_(uint32_t hash,
+                                    const IpHeader* iphdr,
                                     const tcphdr* tcphdr,
                                     uint64_t timestamp,
                                     direction& dir)
 {
-  const uint32_t bucket = net::ip::tcp::hash(iphdr, tcphdr) & _M_mask;
+  const uint32_t bucket = hash & _M_mask;
 
   stack& stack = _M_conns[bucket];
 
@@ -80,6 +156,8 @@ net::ip::tcp::connections::process_(const IpHeader* iphdr,
         if (conn->match(iphdr, tcphdr, dir)) {
           // Process TCP segment.
           if (conn->process(dir, tcphdr->th_flags, timestamp)) {
+            stack.count(nconns);
+
             return conn;
           }
 
@@ -125,33 +203,46 @@ net::ip::tcp::connections::process_(const IpHeader* iphdr,
 
   if (conn) {
     // Add connection to the bucket.
-    if (_M_conns[bucket].push(conn)) {
+    if (stack.push(conn)) {
+      // If the SYN bit has been set...
+      if ((tcphdr->th_flags & syn) != 0) {
+        enum connection::state state;
+
+        // If the ACK bit has not been set...
+        if ((tcphdr->th_flags & ack) == 0) {
+          // Save direction.
+          dir = direction::from_client;
+
+          state = connection::state::connection_requested;
+        } else {
+          // Save direction.
+          dir = direction::from_server;
+
+          state = connection::state::connection_established;
+        }
+
+        // Initialize connection.
+        init(conn, dir, iphdr, tcphdr, state, timestamp);
+      } else {
+        // Generally server's port is smaller than client's port.
+        dir = (ntohs(tcphdr->source) > ntohs(tcphdr->dest)) ?
+                direction::from_client :
+                direction::from_server;
+
+        // Initialize connection.
+        init(conn,
+             dir,
+             iphdr,
+             tcphdr,
+             connection::state::data_transfer,
+             0);
+      }
+
       // Set timestamp of the last packet.
       conn->touch(timestamp);
 
-      enum connection::state state;
-
-      // If the SYN bit has been set...
-      if ((tcphdr->th_flags & syn) != 0) {
-        // If the ACK bit has not been set...
-        if ((tcphdr->th_flags & ack) == 0) {
-          state = connection::state::connection_requested;
-        } else {
-          state = connection::state::connection_established;
-        }
-      } else {
-        state = connection::state::data_transfer;
-        timestamp = 0;
-      }
-
-      // Initialize connection.
-      conn->assign(iphdr, tcphdr, state, timestamp);
-
       // Increment number of connections.
       _M_nconns++;
-
-      // Save direction.
-      dir = direction::from_client;
 
       return conn;
     }
@@ -184,12 +275,20 @@ void net::ip::tcp::connections::remove_expired(uint64_t now)
         if (conn->last_timestamp() + _M_timeout > now) {
           conns[k++] = conns[j];
         } else {
+          if (_M_expiredfn) {
+            _M_expiredfn(conn, _M_user);
+          }
+
           // Remove connection.
           remove(conn);
         }
       } else if (conn->last_timestamp() + _M_time_wait > now) {
         conns[k++] = conns[j];
       } else {
+        if (_M_expiredfn) {
+          _M_expiredfn(conn, _M_user);
+        }
+
         // Remove connection.
         remove(conn);
       }

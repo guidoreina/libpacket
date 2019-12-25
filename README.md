@@ -45,3 +45,18 @@ Start the programs with:
 LD_LIBRARY_PATH=. ./tcp_conns <filename>
 LD_LIBRARY_PATH=. ./extract_tcp_messages <filename> <directory>
 ```
+
+
+### `class net::ip::dns::message`
+DNS message parser.
+
+
+### `class net::ip::tcp::streams`
+It can be used to perform TCP reassembly.
+
+Check `extract_streams.cpp`
+
+Start the programs with:
+```
+LD_LIBRARY_PATH=. ./extract_streams <filename> <directory>
+```

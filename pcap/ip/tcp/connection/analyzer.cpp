@@ -136,12 +136,14 @@ bool pcap::ip::tcp::connection::analyzer::find_syn(const_iterator& it)
       if (it._M_it_syn->version() == net::ip::version::v4) {
         it._M_connection.assign(it._M_it_syn->ipv4(),
                                 it._M_it_syn->tcp(),
+                                net::ip::tcp::direction::from_client,
                                 net::ip::tcp::connection::
                                   state::connection_requested,
                                 it._M_it_syn->timestamp());
       } else {
         it._M_connection.assign(it._M_it_syn->ipv6(),
                                 it._M_it_syn->tcp(),
+                                net::ip::tcp::direction::from_client,
                                 net::ip::tcp::connection::
                                   state::connection_requested,
                                 it._M_it_syn->timestamp());

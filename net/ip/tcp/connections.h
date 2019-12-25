@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include "net/ip/tcp/connection.h"
+#include "net/ip/tcp/hash.h"
 
 namespace net {
   namespace ip {
@@ -43,8 +44,11 @@ namespace net {
           // Default TCP time wait (seconds).
           static constexpr const uint64_t default_time_wait = 2 * 60;
 
+          // Expired callback.
+          typedef void (*expiredfn_t)(const connection*, void*);
+
           // Constructor.
-          connections() = default;
+          connections(expiredfn_t expiredfn = nullptr, void* user = nullptr);
 
           // Destructor.
           ~connections();
@@ -73,6 +77,28 @@ namespace net {
                                     uint64_t timestamp);
 
           const connection* process(const ip6_hdr* iphdr,
+                                    const tcphdr* tcphdr,
+                                    uint64_t timestamp,
+                                    direction& dir);
+
+          const connection* process(uint32_t hash,
+                                    const iphdr* iphdr,
+                                    const tcphdr* tcphdr,
+                                    uint64_t timestamp);
+
+          const connection* process(uint32_t hash,
+                                    const iphdr* iphdr,
+                                    const tcphdr* tcphdr,
+                                    uint64_t timestamp,
+                                    direction& dir);
+
+          const connection* process(uint32_t hash,
+                                    const ip6_hdr* iphdr,
+                                    const tcphdr* tcphdr,
+                                    uint64_t timestamp);
+
+          const connection* process(uint32_t hash,
+                                    const ip6_hdr* iphdr,
                                     const tcphdr* tcphdr,
                                     uint64_t timestamp,
                                     direction& dir);
@@ -157,6 +183,12 @@ namespace net {
           // Next connection id.
           size_t _M_connid = 0;
 
+          // Expired callback.
+          expiredfn_t _M_expiredfn;
+
+          // User pointer.
+          void* _M_user;
+
           // Get free connection.
           connection* get_free_connection();
 
@@ -168,51 +200,41 @@ namespace net {
 
           // Process TCP segment.
           template<typename IpHeader>
-          const connection* process_(const IpHeader* iphdr,
+          const connection* process_(uint32_t hash,
+                                     const IpHeader* iphdr,
                                      const tcphdr* tcphdr,
                                      uint64_t timestamp,
                                      direction& dir);
+
+          // Initialize connection.
+          static void init(connection* conn,
+                           direction dir,
+                           const struct iphdr* iphdr,
+                           const tcphdr* tcphdr,
+                           enum connection::state state,
+                           uint64_t timestamp);
+
+          static void init(connection* conn,
+                           direction dir,
+                           const struct ip6_hdr* iphdr,
+                           const tcphdr* tcphdr,
+                           enum connection::state state,
+                           uint64_t timestamp);
 
           // Disable copy constructor and assignment operator.
           connections(const connections&) = delete;
           connections& operator=(const connections&) = delete;
       };
 
+      inline connections::connections(expiredfn_t expiredfn, void* user)
+        : _M_expiredfn(expiredfn),
+          _M_user(user)
+      {
+      }
+
       inline connections::~connections()
       {
         clear();
-      }
-
-      const connection* tcp::connections::process(const iphdr* iphdr,
-                                                  const tcphdr* tcphdr,
-                                                  uint64_t timestamp)
-      {
-        direction dir;
-        return process_(iphdr, tcphdr, timestamp, dir);
-      }
-
-      const connection* tcp::connections::process(const iphdr* iphdr,
-                                                  const tcphdr* tcphdr,
-                                                  uint64_t timestamp,
-                                                  direction& dir)
-      {
-        return process_(iphdr, tcphdr, timestamp, dir);
-      }
-
-      const connection* tcp::connections::process(const ip6_hdr* iphdr,
-                                                  const tcphdr* tcphdr,
-                                                  uint64_t timestamp)
-      {
-        direction dir;
-        return process_(iphdr, tcphdr, timestamp, dir);
-      }
-
-      const connection* tcp::connections::process(const ip6_hdr* iphdr,
-                                                  const tcphdr* tcphdr,
-                                                  uint64_t timestamp,
-                                                  direction& dir)
-      {
-        return process_(iphdr, tcphdr, timestamp, dir);
       }
 
       inline size_t connections::maximum_number_connections() const
@@ -273,6 +295,58 @@ namespace net {
         }
 
         _M_nconns--;
+      }
+
+      inline void connections::init(connection* conn,
+                                    direction dir,
+                                    const struct iphdr* iphdr,
+                                    const tcphdr* tcphdr,
+                                    enum connection::state state,
+                                    uint64_t timestamp)
+      {
+        if (dir == direction::from_client) {
+          conn->assign(iphdr->saddr,
+                       iphdr->daddr,
+                       tcphdr->source,
+                       tcphdr->dest,
+                       dir,
+                       state,
+                       timestamp);
+        } else {
+          conn->assign(iphdr->daddr,
+                       iphdr->saddr,
+                       tcphdr->dest,
+                       tcphdr->source,
+                       dir,
+                       state,
+                       timestamp);
+        }
+      }
+
+      inline void connections::init(connection* conn,
+                                    direction dir,
+                                    const struct ip6_hdr* iphdr,
+                                    const tcphdr* tcphdr,
+                                    enum connection::state state,
+                                    uint64_t timestamp)
+      {
+        if (dir == direction::from_client) {
+          conn->assign(iphdr->ip6_src,
+                       iphdr->ip6_dst,
+                       tcphdr->source,
+                       tcphdr->dest,
+                       dir,
+                       state,
+                       timestamp);
+        } else {
+          conn->assign(iphdr->ip6_dst,
+                       iphdr->ip6_src,
+                       tcphdr->dest,
+                       tcphdr->source,
+                       dir,
+                       state,
+                       timestamp);
+        }
       }
     }
   }

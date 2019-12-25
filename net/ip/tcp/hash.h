@@ -11,8 +11,8 @@ namespace net {
   namespace ip {
     namespace tcp {
       // Compute hash.
-      static uint32_t hash(const struct iphdr* iphdr,
-                           const struct tcphdr* tcphdr)
+      static inline uint32_t hash(const struct iphdr* iphdr,
+                                  const struct tcphdr* tcphdr)
       {
         static constexpr const uint32_t initval = 0;
 
@@ -52,8 +52,8 @@ namespace net {
       }
 
       // Compute hash.
-      static uint32_t hash(const struct ip6_hdr* iphdr,
-                           const struct tcphdr* tcphdr)
+      static inline uint32_t hash(const struct ip6_hdr* iphdr,
+                                  const struct tcphdr* tcphdr)
       {
         static constexpr const uint32_t initval = 0;
 

@@ -3,7 +3,7 @@
 
 namespace net {
   namespace ip {
-    static constexpr const size_t packet_max_len = 65535;
+    static constexpr const size_t packet_max_len = 256 * 1024;
     static constexpr const size_t domain_name_max_len = 255;
   }
 }

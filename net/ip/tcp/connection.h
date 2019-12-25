@@ -31,11 +31,29 @@ namespace net {
           connection() = default;
           connection(const struct iphdr* iphdr,
                      const struct tcphdr* tcphdr,
+                     direction dir,
+                     enum state s,
+                     uint64_t timestamp);
+
+          connection(uint32_t saddr,
+                     uint32_t daddr,
+                     in_port_t sport,
+                     in_port_t dport,
+                     direction dir,
                      enum state s,
                      uint64_t timestamp);
 
           connection(const struct ip6_hdr* iphdr,
                      const struct tcphdr* tcphdr,
+                     direction dir,
+                     enum state s,
+                     uint64_t timestamp);
+
+          connection(const struct in6_addr& saddr,
+                     const struct in6_addr& daddr,
+                     in_port_t sport,
+                     in_port_t dport,
+                     direction dir,
                      enum state s,
                      uint64_t timestamp);
 
@@ -45,11 +63,29 @@ namespace net {
           // Assign.
           void assign(const struct iphdr* iphdr,
                       const struct tcphdr* tcphdr,
+                      direction dir,
+                      enum state s,
+                      uint64_t timestamp);
+
+          void assign(uint32_t saddr,
+                      uint32_t daddr,
+                      in_port_t sport,
+                      in_port_t dport,
+                      direction dir,
                       enum state s,
                       uint64_t timestamp);
 
           void assign(const struct ip6_hdr* iphdr,
                       const struct tcphdr* tcphdr,
+                      direction dir,
+                      enum state s,
+                      uint64_t timestamp);
+
+          void assign(const struct in6_addr& saddr,
+                      const struct in6_addr& daddr,
+                      in_port_t sport,
+                      in_port_t dport,
+                      direction dir,
                       enum state s,
                       uint64_t timestamp);
 
@@ -101,6 +137,9 @@ namespace net {
           // Set connection id.
           void id(size_t n);
 
+          // Get number of sent packets.
+          uint64_t number_packets(direction dir) const;
+
         private:
           // Client.
           endpoint _M_client;
@@ -123,6 +162,9 @@ namespace net {
           // Connection id.
           size_t _M_id;
 
+          // Number of sent packets.
+          uint64_t _M_npackets[2];
+
           // Disable copy constructor and assignment operator.
           connection(const connection&) = delete;
           connection& operator=(const connection&) = delete;
@@ -130,50 +172,122 @@ namespace net {
 
       inline connection::connection(const struct iphdr* iphdr,
                                     const struct tcphdr* tcphdr,
+                                    direction dir,
                                     enum state s,
                                     uint64_t timestamp)
-        : _M_client(iphdr->saddr, ntohs(tcphdr->source)),
-          _M_server(iphdr->daddr, ntohs(tcphdr->dest)),
-          _M_state(s),
-          _M_timestamp{timestamp}
       {
+        assign(iphdr->saddr,
+               iphdr->daddr,
+               tcphdr->source,
+               tcphdr->dest,
+               dir,
+               s,
+               timestamp);
+      }
+
+      inline connection::connection(uint32_t saddr,
+                                    uint32_t daddr,
+                                    in_port_t sport,
+                                    in_port_t dport,
+                                    direction dir,
+                                    enum state s,
+                                    uint64_t timestamp)
+      {
+        assign(saddr, daddr, sport, dport, dir, s, timestamp);
       }
 
       inline connection::connection(const struct ip6_hdr* iphdr,
                                     const struct tcphdr* tcphdr,
+                                    direction dir,
                                     enum state s,
                                     uint64_t timestamp)
-        : _M_client(iphdr->ip6_src, ntohs(tcphdr->source)),
-          _M_server(iphdr->ip6_dst, ntohs(tcphdr->dest)),
-          _M_state(s),
-          _M_timestamp{timestamp}
       {
+        assign(iphdr->ip6_src,
+               iphdr->ip6_dst,
+               tcphdr->source,
+               tcphdr->dest,
+               dir,
+               s,
+               timestamp);
+      }
+
+      inline connection::connection(const struct in6_addr& saddr,
+                                    const struct in6_addr& daddr,
+                                    in_port_t sport,
+                                    in_port_t dport,
+                                    direction dir,
+                                    enum state s,
+                                    uint64_t timestamp)
+      {
+        assign(saddr, daddr, sport, dport, dir, s, timestamp);
       }
 
       inline void connection::assign(const struct iphdr* iphdr,
                                      const struct tcphdr* tcphdr,
+                                     direction dir,
                                      enum state s,
                                      uint64_t timestamp)
       {
-        _M_client.assign(iphdr->saddr, ntohs(tcphdr->source));
-        _M_server.assign(iphdr->daddr, ntohs(tcphdr->dest));
+        assign(iphdr->saddr,
+               iphdr->daddr,
+               tcphdr->source,
+               tcphdr->dest,
+               dir,
+               s,
+               timestamp);
+      }
+
+      inline void connection::assign(uint32_t saddr,
+                                     uint32_t daddr,
+                                     in_port_t sport,
+                                     in_port_t dport,
+                                     direction dir,
+                                     enum state s,
+                                     uint64_t timestamp)
+      {
+        _M_client.assign(saddr, ntohs(sport));
+        _M_server.assign(daddr, ntohs(dport));
 
         _M_state = s;
 
         _M_timestamp.creation = timestamp;
+
+        _M_npackets[static_cast<size_t>(dir)] = 1;
+        _M_npackets[!static_cast<size_t>(dir)] = 0;
       }
 
       inline void connection::assign(const struct ip6_hdr* iphdr,
                                      const struct tcphdr* tcphdr,
+                                     direction dir,
                                      enum state s,
                                      uint64_t timestamp)
       {
-        _M_client.assign(iphdr->ip6_src, ntohs(tcphdr->source));
-        _M_server.assign(iphdr->ip6_dst, ntohs(tcphdr->dest));
+        assign(iphdr->ip6_src,
+               iphdr->ip6_dst,
+               tcphdr->source,
+               tcphdr->dest,
+               dir,
+               s,
+               timestamp);
+      }
+
+      inline void connection::assign(const struct in6_addr& saddr,
+                                     const struct in6_addr& daddr,
+                                     in_port_t sport,
+                                     in_port_t dport,
+                                     direction dir,
+                                     enum state s,
+                                     uint64_t timestamp)
+      {
+        _M_client.assign(saddr, ntohs(sport));
+        _M_server.assign(daddr, ntohs(dport));
 
         _M_state = s;
 
         _M_timestamp.creation = timestamp;
+
+        _M_npackets[static_cast<size_t>(dir)] = 1;
+        _M_npackets[!static_cast<size_t>(dir)] = 0;
       }
 
       inline bool connection::operator==(const connection& conn) const
@@ -286,6 +400,11 @@ namespace net {
       inline void connection::id(size_t n)
       {
         _M_id = n;
+      }
+
+      inline uint64_t connection::number_packets(direction dir) const
+      {
+        return _M_npackets[static_cast<size_t>(dir)];
       }
     }
   }

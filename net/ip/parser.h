@@ -17,7 +17,7 @@ namespace net {
 
         // Process ethernet frame.
         bool process_ethernet(const void* buf,
-                              uint16_t len,
+                              uint32_t len,
                               uint64_t timestamp,
                               packet* pkt);
 

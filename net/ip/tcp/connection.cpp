@@ -7,6 +7,9 @@ bool net::ip::tcp::connection::process(direction dir,
                                        uint8_t flags,
                                        uint64_t timestamp)
 {
+  // Increment number of sent packets.
+  _M_npackets[static_cast<size_t>(dir)]++;
+
   // http://cradpdf.drdc-rddc.gc.ca/PDFS/unc25/p520460.pdf
 
   switch (_M_state) {
