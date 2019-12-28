@@ -2,6 +2,8 @@
 #define NET_IP_FRAGMENT_H
 
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 namespace net {
   namespace ip {
@@ -10,13 +12,12 @@ namespace net {
       public:
         // Constructor.
         fragment() = default;
-        fragment(uint16_t offset, const void* data, uint16_t len, bool last);
 
         // Destructor.
-        ~fragment() = default;
+        ~fragment();
 
         // Assign.
-        void assign(uint16_t offset, const void* data, uint16_t len, bool last);
+        bool assign(uint16_t offset, const void* data, uint16_t len, bool last);
 
         // Get offset.
         uint16_t offset() const;
@@ -35,7 +36,7 @@ namespace net {
         uint16_t _M_offset;
 
         // Data.
-        const void* _M_data;
+        void* _M_data = nullptr;
 
         // Length.
         uint16_t _M_length;
@@ -48,26 +49,31 @@ namespace net {
         fragment& operator=(const fragment&) = delete;
     };
 
-    inline fragment::fragment(uint16_t offset,
-                              const void* data,
-                              uint16_t len,
-                              bool last)
-      : _M_offset(offset),
-        _M_data(data),
-        _M_length(len),
-        _M_last(last)
+    inline fragment::~fragment()
     {
+      if (_M_data) {
+        free(_M_data);
+      }
     }
 
-    inline void fragment::assign(uint16_t offset,
+    inline bool fragment::assign(uint16_t offset,
                                  const void* data,
                                  uint16_t len,
                                  bool last)
     {
-      _M_offset = offset;
-      _M_data = data;
-      _M_length = len;
-      _M_last = last;
+      void* buf = realloc(_M_data, len);
+      if (buf) {
+        memcpy(buf, data, len);
+
+        _M_offset = offset;
+        _M_data = buf;
+        _M_length = len;
+        _M_last = last;
+
+        return true;
+      }
+
+      return false;
     }
 
     inline uint16_t fragment::offset() const

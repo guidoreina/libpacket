@@ -1,7 +1,6 @@
 #ifndef NET_IP_FRAGMENTED_PACKET_H
 #define NET_IP_FRAGMENTED_PACKET_H
 
-#include <stdlib.h>
 #include "net/ip/fragment.h"
 
 namespace net {
@@ -99,7 +98,7 @@ namespace net {
     inline fragmented_packet::~fragmented_packet()
     {
       for (size_t i = _M_size; i > 0; i--) {
-        free(_M_fragments[i - 1]);
+        delete _M_fragments[i - 1];
       }
     }
 

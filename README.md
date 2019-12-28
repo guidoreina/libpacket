@@ -56,7 +56,18 @@ It can be used to perform TCP reassembly.
 
 Check `extract_streams.cpp`
 
-Start the programs with:
+Start the program with:
 ```
 LD_LIBRARY_PATH=. ./extract_streams <filename> <directory>
+```
+
+
+### `class net::capture::ring_buffer`
+It can be used to read packets from the network card using PACKET\_MMAP (ring buffer).
+
+Check `capture.cpp`
+
+Start the program with:
+```
+LD_LIBRARY_PATH=. ./capture <interface-name>
 ```

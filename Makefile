@@ -1,5 +1,6 @@
 CC=g++
 CXXFLAGS=-O3 -std=c++11 -Wall -pedantic -D_GNU_SOURCE -I. -fPIC
+CXXFLAGS+=-DHAVE_TPACKET_V3
 
 LDFLAGS=-shared
 
@@ -12,7 +13,7 @@ OBJS = util/hash.o string/buffer.o memory/file.o fs/file.o pcap/reader.o \
        net/ip/packets.o net/ip/endpoint.o net/ip/tcp/connection.o \
        net/ip/tcp/connections.o net/ip/tcp/segment.o net/ip/tcp/segments.o \
        net/ip/tcp/stream.o net/ip/tcp/streams.o net/ip/tcp/message.o \
-       net/ip/dns/message.o
+       net/ip/dns/message.o net/capture/ring_buffer.o
 
 DEPS:= ${OBJS:%.o=%.d}
 

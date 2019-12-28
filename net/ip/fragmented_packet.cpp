@@ -1,5 +1,6 @@
 #include <string.h>
 #include <sys/param.h>
+#include <new>
 #include "net/ip/fragmented_packet.h"
 #include "net/ip/limits.h"
 
@@ -54,52 +55,54 @@ net::ip::fragmented_packet::add(const void* iphdr,
       fragment* frag = _M_fragments[_M_used];
 
       // Fill fragment.
-      frag->assign(offset, data, len, last);
+      if (frag->assign(offset, data, len, last)) {
+        // If it is the first fragment...
+        if (offset == 0) {
+          // Save IP header.
+          _M_iphdr = iphdr;
 
-      // If it is the first fragment...
-      if (offset == 0) {
-        // Save IP header.
-        _M_iphdr = iphdr;
+          // Save length of the IP header.
+          _M_iphdrlen = iphdrlen;
 
-        // Save length of the IP header.
-        _M_iphdrlen = iphdrlen;
+          // Save identifier.
+          _M_id = id;
 
-        // Save identifier.
-        _M_id = id;
+          // Save timestamp.
+          _M_timestamp = timestamp;
+        } else if (_M_used == 0) {
+          // Save identifier.
+          _M_id = id;
 
-        // Save timestamp.
-        _M_timestamp = timestamp;
-      } else if (_M_used == 0) {
-        // Save identifier.
-        _M_id = id;
+          // Save timestamp.
+          _M_timestamp = timestamp;
+        }
 
-        // Save timestamp.
-        _M_timestamp = timestamp;
+        // If not the last fragment...
+        if (idx < _M_used) {
+          // Make space for the new fragment (move fragments to the right).
+          memmove(_M_fragments + idx + 1,
+                  _M_fragments + idx,
+                  (_M_used - idx) * sizeof(fragment*));
+        }
+
+        _M_fragments[idx] = frag;
+
+        // Increment number of fragments.
+        _M_used++;
+
+        // Increment total length of the fragmented packet.
+        _M_length += len;
+
+        // Get a pointer to the last fragment.
+        const fragment* last = _M_fragments[_M_used - 1];
+
+        return ((!last->last()) ||
+                (_M_length < last->offset() + last->length())) ?
+                 result::success :
+                 result::complete;
+      } else {
+        return result::no_memory;
       }
-
-      // If not the last fragment...
-      if (idx < _M_used) {
-        // Make space for the new fragment (move fragments to the right).
-        memmove(_M_fragments + idx + 1,
-                _M_fragments + idx,
-                (_M_used - idx) * sizeof(fragment*));
-      }
-
-      _M_fragments[idx] = frag;
-
-      // Increment number of fragments.
-      _M_used++;
-
-      // Increment total length of the fragmented packet.
-      _M_length += len;
-
-      // Get a pointer to the last fragment.
-      const fragment* last = _M_fragments[_M_used - 1];
-
-      return ((!last->last()) ||
-              (_M_length < last->offset() + last->length())) ?
-               result::success :
-               result::complete;
     } else {
       return result::no_memory;
     }
@@ -117,9 +120,7 @@ bool net::ip::fragmented_packet::allocate()
     for (size_t count = MIN(fragment_allocation, max_fragments - _M_used);
          count > 0;
          count--) {
-      if ((_M_fragments[_M_size] = static_cast<fragment*>(
-                                     malloc(sizeof(fragment))
-                                   )) != nullptr) {
+      if ((_M_fragments[_M_size] = new (std::nothrow) fragment()) != nullptr) {
         _M_size++;
       } else {
         break;
