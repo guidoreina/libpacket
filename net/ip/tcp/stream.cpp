@@ -289,8 +289,10 @@ bool net::ip::tcp::stream::check_segments()
       // Decrement number of queued segments.
       _M_nsegments--;
 
-      // If it was the last segment...
-      if (!_M_first) {
+      // If not the last segment...
+      if (_M_first) {
+        _M_first->prev(nullptr);
+      } else {
         _M_last = nullptr;
         return true;
       }
