@@ -601,14 +601,14 @@ bool net::ip::services::load_service(service::identifier id,
                   // If the to-port is not empty...
                   if (ptr != begin) {
                     // If the from-port is less or equal than the to-port...
-                    if (ports.from_port <= ports.to_port) {
+                    if (ports.from_port <= port) {
                       ports.to_port = static_cast<in_port_t>(port);
                     } else {
                       fprintf(stderr,
                               "from-port (%u) is greater than to-port (%u) "
                               "(%s:%zu).\n",
                               ports.from_port,
-                              ports.to_port,
+                              port,
                               filename,
                               nline);
 
