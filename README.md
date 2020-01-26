@@ -71,3 +71,36 @@ Start the program with:
 ```
 LD_LIBRARY_PATH=. ./capture <interface-name>
 ```
+
+
+### `class net::ip::services`
+Class for working with IP services.
+
+An IP service has an identifier, a name and a list of IP addresses and/or domains.
+
+The class loads the services from a directory (one file per service).
+
+Filenames have the format:
+```
+<service-id>_<service-name>.svc
+<service-id> ::= <number>
+```
+
+Each service file contains lines with the following format:
+```
+<ip-address-or-domain>[,<from-port>[,<to-port>]]
+<ip-address-or-domain> ::= <ip-address> | <domain>
+<ip-address> ::= <ipv4-address-or-ipv6-address>[/<prefix-length>]
+<ipv4-address-or-ipv6-address> ::= <ipv4-address> | <ipv6-address>
+<from-port> ::= <port>
+<to-port> ::= <port>
+<prefix-length> ::= 1 .. 32 (for IPv4 addresses) |
+                    1 .. 128 (for IPv6 addresses)
+```
+
+Check `test_services.cpp`
+
+Start the program with:
+```
+LD_LIBRARY_PATH=. ./test_services <directory> <pcap-file>
+```

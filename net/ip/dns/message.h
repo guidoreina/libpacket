@@ -40,7 +40,12 @@ namespace net {
           // DNS response.
           struct response {
             int family; // AF_INET or AF_INET6.
-            uint8_t addr[sizeof(struct in6_addr)];
+
+            union {
+              uint8_t addr[sizeof(struct in6_addr)];
+              uint32_t addr4;
+              struct in6_addr addr6;
+            };
           };
 
           // Get response.

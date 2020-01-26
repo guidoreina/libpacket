@@ -1,4 +1,5 @@
 #include <string.h>
+#include <ctype.h>
 #include "net/ip/dns/message.h"
 
 bool net::ip::dns::message::parse(const void* buf, size_t len)
@@ -147,10 +148,10 @@ bool net::ip::dns::message::parse_domain_name()
               _M_domain[len++] = '.';
             }
 
-            // Copy label.
-            memcpy(_M_domain + len, _M_buf + off + 1, _M_buf[off]);
-
-            len += _M_buf[off];
+            // Convert label to lowercase.
+            for (size_t i = 0; i < _M_buf[off]; i++) {
+              _M_domain[len++] = tolower(_M_buf[off + 1 + i]);
+            }
 
             off = next;
           } else {
