@@ -104,3 +104,7 @@ Start the program with:
 ```
 LD_LIBRARY_PATH=. ./test_services <directory> <pcap-file>
 ```
+
+
+### `service`
+Program which takes two arguments, a directory containing services and an IP address and returns the service to which the IP address belongs to.

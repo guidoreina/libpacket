@@ -58,6 +58,10 @@ namespace net {
         bool process_dns(const void* msg, size_t len);
 
         // Find service.
+        bool find(uint32_t addr, service::identifier& id) const;
+        bool find(struct in_addr addr, service::identifier& id) const;
+        bool find(const struct in6_addr& addr, service::identifier& id) const;
+
         bool find(const struct iphdr* iphdr,
                   const struct tcphdr* tcphdr,
                   service::identifier& id,
@@ -184,6 +188,41 @@ namespace net {
         services(const services&) = delete;
         services& operator=(const services&) = delete;
     };
+
+    inline bool services::find(uint32_t addr, service::identifier& id) const
+    {
+      const ports* const ports = _M_addresses.find(addr);
+      if (ports) {
+        id = ports->id;
+        return true;
+      }
+
+      return false;
+    }
+
+    inline
+    bool services::find(struct in_addr addr, service::identifier& id) const
+    {
+      const ports* const ports = _M_addresses.find(addr);
+      if (ports) {
+        id = ports->id;
+        return true;
+      }
+
+      return false;
+    }
+
+    inline bool services::find(const struct in6_addr& addr,
+                               service::identifier& id) const
+    {
+      const ports* const ports = _M_addresses.find(addr);
+      if (ports) {
+        id = ports->id;
+        return true;
+      }
+
+      return false;
+    }
 
     inline bool services::find(const struct iphdr* iphdr,
                                const struct tcphdr* tcphdr,
