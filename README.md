@@ -108,3 +108,12 @@ LD_LIBRARY_PATH=. ./test_services <directory> <pcap-file>
 
 ### `service`
 Program which takes two arguments, a directory containing services and an IP address and returns the service to which the IP address belongs to.
+
+
+### `services_to_pcap`
+Generates a PCAP file for each service contained in a PCAP file.
+
+Start the program with:
+```
+LD_LIBRARY_PATH=. ./services_to_pcap <services-directory> <pcap-file> <output-directory>
+```
