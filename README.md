@@ -124,5 +124,5 @@ Generates IP and service statistics. It can also generate a PCAP file per servic
 
 Start the program with:
 ```
-LD_LIBRARY_PATH=. ./statistics --services-directory <directory> --pcap <filename> [--csv-directory <directory>] [--pcap-directory <directory>]
+./statistics --services-directory <directory> --pcap <filename> [--csv-directory <directory>] [--pcap-directory <directory>]
 ```

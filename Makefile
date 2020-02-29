@@ -1,11 +1,14 @@
 CC=g++
+AR=ar
 CXXFLAGS=-O3 -std=c++11 -Wall -pedantic -D_GNU_SOURCE -I. -fPIC
 CXXFLAGS+=-DHAVE_TPACKET_V3
 
 LDFLAGS=-shared
 
 MAKEDEPEND=${CC} -MM
-LIBRARY=libpacket.so
+
+SHARED_LIBRARY=libpacket.so
+STATIC_LIBRARY=libpacket.a
 
 OBJS = util/hash.o string/buffer.o memory/file.o fs/file.o pcap/reader.o \
        pcap/ip/analyzer.o pcap/ip/tcp/connection/analyzer.o \
@@ -18,15 +21,18 @@ OBJS = util/hash.o string/buffer.o memory/file.o fs/file.o pcap/reader.o \
 
 DEPS:= ${OBJS:%.o=%.d}
 
-all: $(LIBRARY)
+all: $(SHARED_LIBRARY) $(STATIC_LIBRARY)
 
-${LIBRARY}: ${OBJS}
+${SHARED_LIBRARY}: ${OBJS}
 	${CC} ${OBJS} ${LIBS} -o $@ ${LDFLAGS}
 
-clean:
-	rm -f ${LIBRARY} ${OBJS} ${DEPS}
+${STATIC_LIBRARY}: ${OBJS}
+	${AR} rcs $@ $^
 
-${OBJS} ${DEPS} ${LIBRARY} : Makefile
+clean:
+	rm -f ${SHARED_LIBRARY} ${STATIC_LIBRARY} ${OBJS} ${DEPS}
+
+${OBJS} ${DEPS} ${SHARED_LIBRARY} ${STATIC_LIBRARY} : Makefile
 
 .PHONY : all clean
 

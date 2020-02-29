@@ -167,7 +167,8 @@ bool parse_arguments(int argc,
       // If not the last argument...
       if (i + 1 < argc) {
         struct stat sbuf;
-        if ((stat(argv[i + 1], &sbuf) == 0) && (S_ISREG(sbuf.st_mode))) {
+        if ((strcmp(argv[i + 1], "-") == 0) ||
+            ((stat(argv[i + 1], &sbuf) == 0) && (S_ISREG(sbuf.st_mode)))) {
           pcapfilename = argv[i + 1];
 
           i += 2;
