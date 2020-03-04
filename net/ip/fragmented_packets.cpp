@@ -24,7 +24,7 @@ net::ip::fragmented_packets::add(const void* iphdr,
 {
   // Get fragmented packet.
   ssize_t idx;
-  if ((idx = get(id, timestamp)) != -1) {
+  if ((len > 0) && ((idx = get(id, timestamp)) != -1)) {
     fragmented_packet* pkt = _M_packets[idx];
     switch (pkt->add(iphdr, iphdrlen, id, timestamp, offset, data, len, last)) {
       case fragmented_packet::result::complete:
