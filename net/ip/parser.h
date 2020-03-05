@@ -67,9 +67,6 @@ namespace net {
         case IPPROTO_DSTOPTS:  //  60: IPv6 destination options.
         case IPPROTO_ROUTING:  //  43: IPv6 routing header.
         case IPPROTO_FRAGMENT: //  44: IPv6 fragmentation header.
-        case 51:               //  51: Authentication header.
-        case 50:               //  50: Encapsulating Security Payload.
-        case IPPROTO_NONE:     //  59: IPv6 no next header.
         case IPPROTO_MH:       // 135: IPv6 mobility header.
         case 139:              // 139: Host Identity Protocol.
         case 140:              // 140: Shim6 Protocol.
