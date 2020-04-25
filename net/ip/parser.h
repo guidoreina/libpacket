@@ -37,6 +37,11 @@ namespace net {
         // Fragmented packets.
         fragmented_packets _M_fragmented_packets;
 
+        // Process non-fragmented IPv4 packet.
+        bool process_non_fragmented_ipv4(const struct iphdr* iphdr,
+                                         uint16_t iplen,
+                                         packet* pkt);
+
         // Process TCP segment.
         bool process_tcp(packet* pkt, uint16_t iphdrlen);
 

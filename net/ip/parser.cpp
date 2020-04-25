@@ -75,23 +75,14 @@ bool net::ip::parser::process_ethernet(const void* buf,
             if (len > 4) {
               // Bottom of the stack?
               if (b[2] & 0x01) {
-                switch (((static_cast<uint32_t>(*b) << 12) |
-                         (static_cast<uint32_t>(b[1]) << 8) |
-                         (static_cast<uint32_t>(b[2]) >> 4)) & 0x0fffff) {
-                  case 0: // IPv4.
+                // Check IP version.
+                switch (b[4] & 0xf0) {
+                  case 0x40: // IPv4.
                     return process_ipv4(b + 4, len - 4, timestamp, pkt);
-                  case 2: // IPv6.
+                  case 0x60: // IPv6.
                     return process_ipv6(b + 4, len - 4, timestamp, pkt);
                   default:
-                    // Check IP version.
-                    switch (b[4] & 0xf0) {
-                      case 0x40: // IPv4.
-                        return process_ipv4(b + 4, len - 4, timestamp, pkt);
-                      case 0x60: // IPv6.
-                        return process_ipv6(b + 4, len - 4, timestamp, pkt);
-                      default:
-                        return false;
-                    }
+                    return false;
                 }
               } else {
                 // Skip MPLS label.
@@ -119,92 +110,122 @@ bool net::ip::parser::process_ipv4(const void* buf,
                                    uint64_t timestamp,
                                    packet* pkt)
 {
-  // Save timestamp.
-  pkt->_M_timestamp = timestamp;
+  // If the packet is big enough...
+  if (len > sizeof(struct iphdr)) {
+    const struct iphdr* const iphdr = static_cast<const struct iphdr*>(buf);
 
-  // Save IP version.
-  pkt->_M_version = ip::version::v4;
+    // Compute IP header length.
+    const uint16_t iphdrlen = static_cast<uint16_t>(iphdr->ihl) << 2;
 
-  do {
-    // If the packet is big enough...
-    if (len > sizeof(struct iphdr)) {
-      const struct iphdr* const iphdr = static_cast<const struct iphdr*>(buf);
+    // Compute length of the IP packet.
+    const uint16_t iplen = ntohs(iphdr->tot_len);
 
-      // Compute IP header length.
-      const uint16_t iphdrlen = static_cast<uint16_t>(iphdr->ihl) << 2;
+    // Sanity check.
+    if ((iphdrlen >= sizeof(struct iphdr)) &&
+        (iphdrlen < iplen) &&
+        (iplen <= len)) {
+      // Save timestamp.
+      pkt->_M_timestamp = timestamp;
 
-      // Compute length of the IP packet.
-      const uint16_t iplen = ntohs(iphdr->tot_len);
+      // Save IP version.
+      pkt->_M_version = ip::version::v4;
 
-      // Sanity check.
-      if ((iphdrlen >= sizeof(struct iphdr)) &&
-          (iphdrlen < iplen) &&
-          (iplen <= len)) {
-        // If the packet is not fragmented...
-        if ((ntohs(iphdr->frag_off) & (IP_MF | IP_OFFMASK)) == 0) {
-          // Save length of the IP packet.
-          pkt->_M_length = iplen;
+      // If the packet is not fragmented...
+      if ((ntohs(iphdr->frag_off) & (IP_MF | IP_OFFMASK)) == 0) {
+        // Process non-fragmented IPv4 packet.
+        return process_non_fragmented_ipv4(iphdr, iplen, pkt);
+      } else {
+        const fragmented_packet* const
+          fp = _M_fragmented_packets.add(iphdr,
+                                         iphdrlen,
+                                         iphdr->id,
+                                         timestamp,
+                                         fragment_offset(iphdr),
+                                         static_cast<const uint8_t*>(buf) +
+                                         iphdrlen,
+                                         iplen - iphdrlen,
+                                         last_fragment(iphdr));
 
-          // Save pointer to the layer 2 protocol.
-          pkt->_M_l2.ipv4 = iphdr;
+        // If the fragmented packet is now complete and can be built from the
+        // individual fragments...
+        if ((fp) && (build(fp, pkt))) {
+          struct iphdr* iphdr = static_cast<struct iphdr*>(pkt->_M_buf);
 
-          switch (iphdr->protocol) {
-            case IPPROTO_TCP:
-              return process_tcp(pkt, iphdrlen);
-            case IPPROTO_UDP:
-              return process_udp(pkt, iphdrlen);
-            case IPPROTO_ICMP:
-              return process_icmp(pkt, iphdrlen);
-            case IPPROTO_IPIP:
-              buf = static_cast<const uint8_t*>(buf) + iphdrlen;
+          // Set packet length.
+          iphdr->tot_len = htons(pkt->_M_length);
 
-              if ((*static_cast<const uint8_t*>(buf) & 0xf0) == 0x40) {
-                len -= iphdrlen;
-                continue;
-              }
+          // Clear fragmentation bits.
+          iphdr->frag_off = 0;
 
-              return false;
-          }
-        } else {
-          const fragmented_packet* const
-            fp = _M_fragmented_packets.add(iphdr,
-                                           iphdrlen,
-                                           iphdr->id,
-                                           timestamp,
-                                           fragment_offset(iphdr),
-                                           static_cast<const uint8_t*>(buf) +
-                                           iphdrlen,
-                                           iplen - iphdrlen,
-                                           last_fragment(iphdr));
-
-          // If the fragmented packet is now complete and can be built from the
-          // individual fragments...
-          if ((fp) && (build(fp, pkt))) {
-            struct iphdr* iphdr = static_cast<struct iphdr*>(pkt->_M_buf);
-
-            // Set packet length.
-            iphdr->tot_len = htons(pkt->_M_length);
-
-            // Clear fragmentation bits.
-            iphdr->frag_off = 0;
-
-            // Save pointer to the layer 2 protocol.
-            pkt->_M_l2.ipv4 = iphdr;
-
-            switch (iphdr->protocol) {
-              case IPPROTO_TCP:
-                return process_tcp(pkt, fp->ip_header_length());
-              case IPPROTO_UDP:
-                return process_udp(pkt, fp->ip_header_length());
-              case IPPROTO_ICMP:
-                return process_icmp(pkt, fp->ip_header_length());
-            }
-          }
+          // Process non-fragmented IPv4 packet.
+          return process_non_fragmented_ipv4(iphdr, pkt->_M_length, pkt);
         }
       }
     }
+  }
 
-    return false;
+  return false;
+}
+
+bool net::ip::parser::process_non_fragmented_ipv4(const struct iphdr* iphdr,
+                                                  uint16_t iplen,
+                                                  packet* pkt)
+{
+  do {
+    // Save length of the IP packet.
+    pkt->_M_length = iplen;
+
+    // Save pointer to the layer 2 protocol.
+    pkt->_M_l2.ipv4 = iphdr;
+
+    // Compute IP header length.
+    uint16_t iphdrlen = static_cast<uint16_t>(iphdr->ihl) << 2;
+
+    switch (iphdr->protocol) {
+      case IPPROTO_TCP:
+        return process_tcp(pkt, iphdrlen);
+      case IPPROTO_UDP:
+        return process_udp(pkt, iphdrlen);
+      case IPPROTO_ICMP:
+        return process_icmp(pkt, iphdrlen);
+      case IPPROTO_IPIP:
+        // Make 'iphdr' point after the IPv4 header.
+        iphdr = reinterpret_cast<const struct iphdr*>(
+                  reinterpret_cast<const uint8_t*>(iphdr) + iphdrlen
+                );
+
+        // IPv4?
+        if (iphdr->version == 4) {
+          // Compute length of the new packet.
+          const uint16_t len = iplen - iphdrlen;
+
+          // If the packet is big enough...
+          if (len > sizeof(struct iphdr)) {
+            // Compute IP header length.
+            iphdrlen = static_cast<uint16_t>(iphdr->ihl) << 2;
+
+            // Compute length of the IP packet.
+            iplen = ntohs(iphdr->tot_len);
+
+            // Sanity check.
+            if ((iphdrlen >= sizeof(struct iphdr)) &&
+                (iphdrlen < iplen) &&
+                (iplen <= len)) {
+              continue;
+            }
+          }
+        }
+
+        return false;
+      case IPPROTO_IPV6:
+        // Process IPv6 packet.
+        return process_ipv6(reinterpret_cast<const uint8_t*>(iphdr) + iphdrlen,
+                            iplen - iphdrlen,
+                            pkt->_M_timestamp,
+                            pkt);
+      default:
+        return false;
+    }
   } while (true);
 }
 
