@@ -63,27 +63,17 @@ bool net::ip::statistics::process(const struct iphdr* iphdr,
                                   uint16_t l4len,
                                   uint64_t timestamp)
 {
-  // First packet?
-  if (_M_timestamp_first_packet == 0) {
-    _M_timestamp_first_packet = timestamp;
+  if (_M_global_statistics.process(iphdr, tcphdr, pktlen, l4len, timestamp)) {
+    service::identifier id;
+    service::direction dir;
+    if (_M_services.find(iphdr, tcphdr, id, dir)) {
+      return process(id, dir, iphdr, pktlen, l4len, timestamp);
+    }
+
+    return true;
   }
 
-  _M_timestamp_last_packet = timestamp;
-  _M_npackets++;
-
-  _M_ipv4++;
-  _M_tcp++;
-
-  _M_transferred += pktlen;
-  _M_payload += l4len;
-
-  service::identifier id;
-  service::direction dir;
-  if (_M_services.find(iphdr, tcphdr, id, dir)) {
-    return process(id, dir, iphdr, pktlen, l4len, timestamp);
-  }
-
-  return true;
+  return false;
 }
 
 bool net::ip::statistics::process(const struct iphdr* iphdr,
@@ -92,35 +82,25 @@ bool net::ip::statistics::process(const struct iphdr* iphdr,
                                   uint16_t l4len,
                                   uint64_t timestamp)
 {
-  // First packet?
-  if (_M_timestamp_first_packet == 0) {
-    _M_timestamp_first_packet = timestamp;
+  if (_M_global_statistics.process(iphdr, udphdr, pktlen, l4len, timestamp)) {
+    // DNS response?
+    if (udphdr->source == dns::port) {
+      // Process DNS message.
+      _M_services.process_dns(reinterpret_cast<const uint8_t*>(udphdr) +
+                              sizeof(struct udphdr),
+                              l4len);
+    }
+
+    service::identifier id;
+    service::direction dir;
+    if (_M_services.find(iphdr, udphdr, id, dir)) {
+      return process(id, dir, iphdr, pktlen, l4len, timestamp);
+    }
+
+    return true;
   }
 
-  _M_timestamp_last_packet = timestamp;
-  _M_npackets++;
-
-  _M_ipv4++;
-  _M_udp++;
-
-  _M_transferred += pktlen;
-  _M_payload += l4len;
-
-  // DNS response?
-  if (udphdr->source == dns::port) {
-    // Process DNS message.
-    _M_services.process_dns(reinterpret_cast<const uint8_t*>(udphdr) +
-                            sizeof(struct udphdr),
-                            l4len);
-  }
-
-  service::identifier id;
-  service::direction dir;
-  if (_M_services.find(iphdr, udphdr, id, dir)) {
-    return process(id, dir, iphdr, pktlen, l4len, timestamp);
-  }
-
-  return true;
+  return false;
 }
 
 bool net::ip::statistics::process(const struct ip6_hdr* iphdr,
@@ -129,27 +109,17 @@ bool net::ip::statistics::process(const struct ip6_hdr* iphdr,
                                   uint16_t l4len,
                                   uint64_t timestamp)
 {
-  // First packet?
-  if (_M_timestamp_first_packet == 0) {
-    _M_timestamp_first_packet = timestamp;
+  if (_M_global_statistics.process(iphdr, tcphdr, pktlen, l4len, timestamp)) {
+    service::identifier id;
+    service::direction dir;
+    if (_M_services.find(iphdr, tcphdr, id, dir)) {
+      return process(id, dir, iphdr, pktlen, l4len, timestamp);
+    }
+
+    return true;
   }
 
-  _M_timestamp_last_packet = timestamp;
-  _M_npackets++;
-
-  _M_ipv6++;
-  _M_tcp++;
-
-  _M_transferred += pktlen;
-  _M_payload += l4len;
-
-  service::identifier id;
-  service::direction dir;
-  if (_M_services.find(iphdr, tcphdr, id, dir)) {
-    return process(id, dir, iphdr, pktlen, l4len, timestamp);
-  }
-
-  return true;
+  return false;
 }
 
 bool net::ip::statistics::process(const struct ip6_hdr* iphdr,
@@ -158,38 +128,135 @@ bool net::ip::statistics::process(const struct ip6_hdr* iphdr,
                                   uint16_t l4len,
                                   uint64_t timestamp)
 {
-  // First packet?
-  if (_M_timestamp_first_packet == 0) {
-    _M_timestamp_first_packet = timestamp;
+  if (_M_global_statistics.process(iphdr, udphdr, pktlen, l4len, timestamp)) {
+    // DNS response?
+    if (udphdr->source == dns::port) {
+      // Process DNS message.
+      _M_services.process_dns(reinterpret_cast<const uint8_t*>(udphdr) +
+                              sizeof(struct udphdr),
+                              l4len);
+    }
+
+    service::identifier id;
+    service::direction dir;
+    if (_M_services.find(iphdr, udphdr, id, dir)) {
+      return process(id, dir, iphdr, pktlen, l4len, timestamp);
+    }
+
+    return true;
   }
 
-  _M_timestamp_last_packet = timestamp;
-  _M_npackets++;
-
-  _M_ipv6++;
-  _M_udp++;
-
-  _M_transferred += pktlen;
-  _M_payload += l4len;
-
-  // DNS response?
-  if (udphdr->source == dns::port) {
-    // Process DNS message.
-    _M_services.process_dns(reinterpret_cast<const uint8_t*>(udphdr) +
-                            sizeof(struct udphdr),
-                            l4len);
-  }
-
-  service::identifier id;
-  service::direction dir;
-  if (_M_services.find(iphdr, udphdr, id, dir)) {
-    return process(id, dir, iphdr, pktlen, l4len, timestamp);
-  }
-
-  return true;
+  return false;
 }
 
 void net::ip::statistics::print() const
+{
+  // Print global statistics.
+  _M_global_statistics.print();
+
+  // If there are services...
+  if (_M_used > 0) {
+    printf("\nServices:\n");
+
+    const transferred& transferred = _M_global_statistics.total_transferred();
+
+    // For each service...
+    for (size_t i = _M_used; i > 0; i--) {
+      const service_statistics* const stats = &_M_statistics[i - 1];
+
+      printf("  %s:\n", _M_services.name(stats->id));
+
+      char s[32];
+      printf("    Timestamp of the first packet: %s.\n",
+             timestamp_to_string(stats->timestamp_first_packet, s, sizeof(s)));
+
+      printf("    Timestamp of the last packet: %s.\n",
+             timestamp_to_string(stats->timestamp_last_packet, s, sizeof(s)));
+
+      printf("    Upload:\n");
+
+      printf("      # packets: %" PRIu64 " (%.2f%%)\n",
+             stats->total_upload.npackets,
+             percentage(stats->total_upload.npackets, transferred.npackets));
+
+      printf("      Bytes: %" PRIu64 " (%.2f%%)\n",
+             stats->total_upload.bytes,
+             percentage(stats->total_upload.bytes, transferred.bytes));
+
+      printf("      Payload: %" PRIu64 " (%.2f%%)\n",
+             stats->total_upload.payload,
+             percentage(stats->total_upload.payload, transferred.payload));
+
+      printf("    Download:\n");
+
+      printf("      # packets: %" PRIu64 " (%.2f%%)\n",
+             stats->total_download.npackets,
+             percentage(stats->total_download.npackets, transferred.npackets));
+
+      printf("      Bytes: %" PRIu64 " (%.2f%%)\n",
+             stats->total_download.bytes,
+             percentage(stats->total_download.bytes, transferred.bytes));
+
+      printf("      Payload: %" PRIu64 " (%.2f%%)\n\n",
+             stats->total_download.payload,
+             percentage(stats->total_download.payload, transferred.payload));
+    }
+  }
+}
+
+bool
+net::ip::statistics::global_statistics::process(const struct iphdr* iphdr,
+                                                const struct tcphdr* tcphdr,
+                                                uint16_t pktlen,
+                                                uint16_t l4len,
+                                                uint64_t timestamp)
+{
+  _M_ipv4++;
+  _M_tcp++;
+
+  return process(pktlen, l4len, timestamp);
+}
+
+bool
+net::ip::statistics::global_statistics::process(const struct iphdr* iphdr,
+                                                const struct udphdr* udphdr,
+                                                uint16_t pktlen,
+                                                uint16_t l4len,
+                                                uint64_t timestamp)
+{
+  _M_ipv4++;
+  _M_udp++;
+
+  return process(pktlen, l4len, timestamp);
+}
+
+bool
+net::ip::statistics::global_statistics::process(const struct ip6_hdr* iphdr,
+                                                const struct tcphdr* tcphdr,
+                                                uint16_t pktlen,
+                                                uint16_t l4len,
+                                                uint64_t timestamp)
+{
+  _M_ipv6++;
+  _M_tcp++;
+
+  return process(pktlen, l4len, timestamp);
+}
+
+bool
+net::ip::statistics::global_statistics::process(const struct ip6_hdr* iphdr,
+                                                const struct udphdr* udphdr,
+                                                uint16_t pktlen,
+                                                uint16_t l4len,
+                                                uint64_t timestamp)
+{
+  _M_ipv6++;
+  _M_udp++;
+
+  return process(pktlen, l4len, timestamp);
+}
+
+void net::ip::statistics::global_statistics::print() const
 {
   printf("########################################\n");
   printf("########################################\n");
@@ -206,72 +273,112 @@ void net::ip::statistics::print() const
   printf("Timestamp of the last packet: %s.\n",
          timestamp_to_string(_M_timestamp_last_packet, s, sizeof(s)));
 
-  printf("Number of packets: %" PRIu64 ".\n", _M_npackets);
+  printf("Number of packets: %" PRIu64 ".\n", _M_total_transferred.npackets);
 
   printf("Number of IPv4 packets: %" PRIu64 " (%.2f%%).\n",
          _M_ipv4,
-         percentage(_M_ipv4, _M_npackets));
+         percentage(_M_ipv4, _M_total_transferred.npackets));
 
   printf("Number of IPv6 packets: %" PRIu64 " (%.2f%%).\n",
          _M_ipv6,
-         percentage(_M_ipv6, _M_npackets));
+         percentage(_M_ipv6, _M_total_transferred.npackets));
 
   printf("Number of TCP segments: %" PRIu64 " (%.2f%%).\n",
          _M_tcp,
-         percentage(_M_tcp, _M_npackets));
+         percentage(_M_tcp, _M_total_transferred.npackets));
 
   printf("Number of UDP datagrams: %" PRIu64 " (%.2f%%).\n",
          _M_udp,
-         percentage(_M_udp, _M_npackets));
+         percentage(_M_udp, _M_total_transferred.npackets));
 
-  printf("Total transferred: %" PRIu64 " bytes.\n", _M_transferred);
+  printf("Total transferred: %" PRIu64 " bytes.\n", _M_total_transferred.bytes);
 
   printf("Total payload: %" PRIu64 " bytes (%.2f%%).\n",
-         _M_payload,
-         percentage(_M_payload, _M_transferred));
+         _M_total_transferred.payload,
+         percentage(_M_total_transferred.payload, _M_total_transferred.bytes));
+}
 
-  printf("\nServices:\n");
-
-  // For each service...
-  for (size_t i = _M_used; i > 0; i--) {
-    const service_statistics* const stats = &_M_statistics[i - 1];
-
-    printf("  %s:\n", _M_services.name(stats->id));
-
-    printf("    Timestamp of the first packet: %s.\n",
-           timestamp_to_string(stats->timestamp_first_packet, s, sizeof(s)));
-
-    printf("    Timestamp of the last packet: %s.\n",
-           timestamp_to_string(stats->timestamp_last_packet, s, sizeof(s)));
-
-    printf("    Upload:\n");
-
-    printf("      # packets: %" PRIu64 " (%.2f%%)\n",
-           stats->total_upload.npackets,
-           percentage(stats->total_upload.npackets, _M_npackets));
-
-    printf("      Bytes: %" PRIu64 " (%.2f%%)\n",
-           stats->total_upload.bytes,
-           percentage(stats->total_upload.bytes, _M_transferred));
-
-    printf("      Payload: %" PRIu64 " (%.2f%%)\n",
-           stats->total_upload.payload,
-           percentage(stats->total_upload.payload, _M_payload));
-
-    printf("    Download:\n");
-
-    printf("      # packets: %" PRIu64 " (%.2f%%)\n",
-           stats->total_download.npackets,
-           percentage(stats->total_download.npackets, _M_npackets));
-
-    printf("      Bytes: %" PRIu64 " (%.2f%%)\n",
-           stats->total_download.bytes,
-           percentage(stats->total_download.bytes, _M_transferred));
-
-    printf("      Payload: %" PRIu64 " (%.2f%%)\n\n",
-           stats->total_download.payload,
-           percentage(stats->total_download.payload, _M_payload));
+bool net::ip::statistics::global_statistics::process(uint16_t pktlen,
+                                                     uint16_t l4len,
+                                                     uint64_t timestamp)
+{
+  // First packet?
+  if (_M_timestamp_first_packet == 0) {
+    _M_timestamp_first_packet = timestamp;
   }
+
+  _M_timestamp_last_packet = timestamp;
+
+  _M_total_transferred.npackets++;
+  _M_total_transferred.bytes += pktlen;
+  _M_total_transferred.payload += l4len;
+
+  // If CSV files should be generated...
+  if (*_M_csv_directory) {
+    // If the CSV file for the global statistics has not been opened yet...
+    if (!_M_csvfile) {
+      // Open CSV file.
+      if (!open_csv_file()) {
+        return false;
+      }
+    }
+
+    const time_t sec = timestamp / 1000000ull;
+
+    if ((_M_timestamp != 0) && (sec != _M_timestamp)) {
+      dump();
+
+      _M_transferred.clear();
+    }
+
+    _M_timestamp = sec;
+
+    _M_transferred.npackets++;
+    _M_transferred.bytes += pktlen;
+    _M_transferred.payload += l4len;
+  }
+
+  return true;
+}
+
+bool net::ip::statistics::global_statistics::open_csv_file()
+{
+  // Compose name of the CSV file.
+  char filename[PATH_MAX];
+  snprintf(filename, sizeof(filename), "%s/all.csv", _M_csv_directory);
+
+  // Open CSV file for writing.
+  if ((_M_csvfile = fopen(filename, "w")) != nullptr) {
+    fprintf(_M_csvfile,
+            "#timestamp%c"
+            "packets-transferred%c"
+            "bytes-transferred%c"
+            "payload-transferred\n",
+            csv_separator,
+            csv_separator,
+            csv_separator);
+
+    return true;
+  } else {
+    return false;
+  }
+}
+
+void net::ip::statistics::global_statistics::dump()
+{
+  char s[32];
+  fprintf(_M_csvfile,
+          "%s%c"
+          "%" PRIu64 "%c"
+          "%" PRIu64 "%c"
+          "%" PRIu64 "\n",
+          timestamp_to_string(_M_timestamp, s, sizeof(s)),
+          csv_separator,
+          _M_transferred.npackets,
+          csv_separator,
+          _M_transferred.bytes,
+          csv_separator,
+          _M_transferred.payload);
 }
 
 bool net::ip::statistics::process(service::identifier id,

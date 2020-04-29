@@ -12,7 +12,7 @@ namespace net {
     class statistics {
       public:
         // Constructor.
-        statistics() = default;
+        statistics();
 
         // Destructor.
         ~statistics();
@@ -79,6 +79,96 @@ namespace net {
           void clear();
         };
 
+        // Global statistics.
+        class global_statistics {
+          public:
+            // Constructor.
+            global_statistics(const char* csv_directory);
+
+            // Destructor.
+            ~global_statistics();
+
+            // Process packet.
+            bool process(const struct iphdr* iphdr,
+                         const struct tcphdr* tcphdr,
+                         uint16_t pktlen,
+                         uint16_t l4len,
+                         uint64_t timestamp);
+
+            bool process(const struct iphdr* iphdr,
+                         const struct udphdr* udphdr,
+                         uint16_t pktlen,
+                         uint16_t l4len,
+                         uint64_t timestamp);
+
+            bool process(const struct ip6_hdr* iphdr,
+                         const struct tcphdr* tcphdr,
+                         uint16_t pktlen,
+                         uint16_t l4len,
+                         uint64_t timestamp);
+
+            bool process(const struct ip6_hdr* iphdr,
+                         const struct udphdr* udphdr,
+                         uint16_t pktlen,
+                         uint16_t l4len,
+                         uint64_t timestamp);
+
+            // Print global statistics.
+            void print() const;
+
+            // Get total transferred.
+            const transferred& total_transferred() const;
+
+          private:
+            // Directory for the CSV files.
+            const char* const _M_csv_directory;
+
+            // Timestamp of the first packet.
+            uint64_t _M_timestamp_first_packet = 0;
+
+            // Timestamp of the last packet.
+            uint64_t _M_timestamp_last_packet = 0;
+
+            // Total transferred.
+            transferred _M_total_transferred = {0, 0, 0};
+
+            // Number of IPv4 packets.
+            uint64_t _M_ipv4 = 0;
+
+            // Number of IPv6 packets.
+            uint64_t _M_ipv6 = 0;
+
+            // Number of TCP segments.
+            uint64_t _M_tcp = 0;
+
+            // Number of UDP datagrams.
+            uint64_t _M_udp = 0;
+
+            // Timestamp.
+            time_t _M_timestamp = 0;
+
+            // Transferred in the last second.
+            transferred _M_transferred = {0, 0, 0};
+
+            // CSV file.
+            FILE* _M_csvfile = nullptr;
+
+            // Process packet.
+            bool process(uint16_t pktlen, uint16_t l4len, uint64_t timestamp);
+
+            // Open CSV file.
+            bool open_csv_file();
+
+            // Dump statistics.
+            void dump();
+
+            // Disable copy constructor and assignment operator.
+            global_statistics(const global_statistics&) = delete;
+            global_statistics& operator=(const global_statistics&) = delete;
+        };
+
+        global_statistics _M_global_statistics;
+
         // Service statistics.
         struct service_statistics {
           service::identifier id;
@@ -120,33 +210,6 @@ namespace net {
 
         // Directory for the PCAP files.
         char _M_pcap_directory[PATH_MAX] = {0};
-
-        // Timestamp of the first packet.
-        uint64_t _M_timestamp_first_packet = 0;
-
-        // Timestamp of the last packet.
-        uint64_t _M_timestamp_last_packet = 0;
-
-        // Number of packets.
-        uint64_t _M_npackets = 0;
-
-        // Number of IPv4 packets.
-        uint64_t _M_ipv4 = 0;
-
-        // Number of IPv6 packets.
-        uint64_t _M_ipv6 = 0;
-
-        // Number of TCP segments.
-        uint64_t _M_tcp = 0;
-
-        // Number of UDP datagrams.
-        uint64_t _M_udp = 0;
-
-        // Total transferred in bytes.
-        uint64_t _M_transferred = 0;
-
-        // Total payload in bytes.
-        uint64_t _M_payload = 0;
 
         // Process packet.
         bool process(service::identifier id,
@@ -197,6 +260,11 @@ namespace net {
         statistics& operator=(const statistics&) = delete;
     };
 
+    inline statistics::statistics()
+      : _M_global_statistics(_M_csv_directory)
+    {
+    }
+
     inline bool statistics::load(const char* dirname)
     {
       return _M_services.load(dirname);
@@ -207,6 +275,33 @@ namespace net {
       npackets = 0;
       bytes = 0;
       payload = 0;
+    }
+
+    inline
+    statistics::global_statistics::global_statistics(const char* csv_directory)
+      : _M_csv_directory(csv_directory)
+    {
+    }
+
+    inline statistics::global_statistics::~global_statistics()
+    {
+      // If the CSV file has been opened...
+      if (_M_csvfile) {
+        // If some packet was sent or received lately...
+        if (_M_transferred.npackets != 0) {
+          // Dump statistics.
+          dump();
+        }
+
+        // Close CSV file.
+        fclose(_M_csvfile);
+      }
+    }
+
+    inline const statistics::transferred&
+    statistics::global_statistics::total_transferred() const
+    {
+      return _M_total_transferred;
     }
 
     inline float statistics::percentage(uint64_t count, uint64_t total)
