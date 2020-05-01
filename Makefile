@@ -11,7 +11,7 @@ SHARED_LIBRARY=libpacket.so
 STATIC_LIBRARY=libpacket.a
 
 OBJS = util/hash.o string/buffer.o memory/file.o fs/file.o pcap/reader.o \
-       pcap/ip/analyzer.o pcap/ip/tcp/connection/analyzer.o \
+       pcap/live_reader.o pcap/ip/analyzer.o pcap/ip/tcp/connection/analyzer.o \
        net/ip/address_list.o net/ip/fragmented_packet.o \
        net/ip/fragmented_packets.o net/ip/parser.o net/ip/packets.o \
        net/ip/endpoint.o net/ip/tcp/connection.o net/ip/tcp/connections.o \

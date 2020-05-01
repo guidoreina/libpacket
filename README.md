@@ -24,6 +24,17 @@ LD_LIBRARY_PATH=. ./pcap_stats <filename>
 ```
 
 
+### `class pcap::live_reader`
+It can be used to read the packets in a PCAP file in which packets are being added at the moment (format is not understood).
+
+Check `pcap_live_reader.cpp`
+
+Start the program with:
+```
+./pcap_live_reader <filename>
+```
+
+
 ### `class pcap::ip::analyzer`
 It can be used to iterate through the IP packets in a PCAP file. It reassembles the fragmented packets.
 

@@ -7,6 +7,7 @@ namespace pcap {
   // PCAP packet.
   class packet {
     friend class reader;
+    friend class live_reader;
 
     public:
       // Constructor.
