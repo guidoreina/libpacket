@@ -48,7 +48,6 @@ LD_LIBRARY_PATH=. ./ip_stats <filename>
 
 ### `class pcap::ip::live_analyzer`
 It can be used to process the IP packets in a PCAP file in which packets are being added at the moment. It reassembles the fragmented packets.
-```
 
 
 ### `class pcap::ip::tcp::connection::analyzer`
