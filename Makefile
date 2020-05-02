@@ -18,7 +18,7 @@ OBJS = util/hash.o string/buffer.o memory/file.o fs/file.o pcap/reader.o \
        net/ip/tcp/connections.o net/ip/tcp/segment.o net/ip/tcp/segments.o \
        net/ip/tcp/stream.o net/ip/tcp/streams.o net/ip/tcp/message.o \
        net/ip/dns/message.o net/ip/ports.o net/capture/ring_buffer.o \
-       net/ip/services.o net/ip/statistics.o
+       net/ip/services.o net/ip/statistics.o net/ip/statistics_lite.o
 
 DEPS:= ${OBJS:%.o=%.d}
 
