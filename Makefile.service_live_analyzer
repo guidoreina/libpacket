@@ -1,0 +1,32 @@
+CC=g++
+CXXFLAGS=-O3 -std=c++11 -Wall -pedantic -D_GNU_SOURCE -I.
+
+LDFLAGS=
+LIBS=libpacket.a
+
+MAKEDEPEND=${CC} -MM
+PROGRAM=service_live_analyzer
+
+OBJS = ${PROGRAM}.o
+
+DEPS:= ${OBJS:%.o=%.d}
+
+all: $(PROGRAM)
+
+${PROGRAM}: ${OBJS}
+	${CC} ${OBJS} ${LIBS} -o $@ ${LDFLAGS}
+
+clean:
+	rm -f ${PROGRAM} ${OBJS} ${DEPS}
+
+${OBJS} ${DEPS} ${PROGRAM} : Makefile.${PROGRAM}
+
+.PHONY : all clean
+
+%.d : %.cpp
+	${MAKEDEPEND} ${CXXFLAGS} $< -MT ${@:%.d=%.o} > $@
+
+%.o : %.cpp
+	${CC} ${CXXFLAGS} -c -o $@ $<
+
+-include ${DEPS}
