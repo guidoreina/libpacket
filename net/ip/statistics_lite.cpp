@@ -351,6 +351,9 @@ void net::ip::statistics_lite::service_statistics::add_line()
           _M_download.payload,
           csv_separator,
           addresses);
+
+  // Flush file.
+  fflush(_M_csvfile);
 }
 
 const char* net::ip::statistics_lite::timestamp_to_string(uint64_t timestamp,

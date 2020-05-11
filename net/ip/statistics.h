@@ -306,7 +306,7 @@ namespace net {
 
     inline float statistics::percentage(uint64_t count, uint64_t total)
     {
-      return static_cast<float>((count * 100.0) / total);
+      return (total > 0) ? static_cast<float>((count * 100.0) / total) : 0.0;
     }
   }
 }
