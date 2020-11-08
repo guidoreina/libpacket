@@ -1,7 +1,8 @@
 CC=g++
 CXXFLAGS=-O3 -std=c++11 -Wall -pedantic -D_GNU_SOURCE -I.
 
-LDFLAGS=-L. -lpacket
+LDFLAGS=
+LIBS=libpacket.a
 
 MAKEDEPEND=${CC} -MM
 PROGRAM=extract_streams
