@@ -36,6 +36,7 @@ bool net::capture::ring_buffer::create(unsigned ifindex,
                                        size_t frame_count,
                                        const struct sock_fprog* fprog)
 {
+  // Sanity checks.
   if ((ifindex > 0) &&
       ((rcvbuf_size == 0) || (rcvbuf_size >= min_rcvbuf_size)) &&
       (block_size >= min_block_size) &&
@@ -170,9 +171,9 @@ bool net::capture::ring_buffer::setup_socket(int rcvbuf_size,
     }
 
 #if HAVE_TPACKET_V3
-    int optval = TPACKET_V3;
+    const int optval = TPACKET_V3;
 #else
-    int optval = TPACKET_V2;
+    const int optval = TPACKET_V2;
 #endif
 
     // Set packet version.
@@ -183,7 +184,7 @@ bool net::capture::ring_buffer::setup_socket(int rcvbuf_size,
                    sizeof(int)) == 0) {
 #if defined(PACKET_TIMESTAMP)
       // Enable packet timestamp.
-      optval = SOF_TIMESTAMPING_RAW_HARDWARE;
+      const int optval = SOF_TIMESTAMPING_RAW_HARDWARE;
       if (setsockopt(_M_fd,
                      SOL_PACKET,
                      PACKET_TIMESTAMP,
@@ -289,7 +290,7 @@ bool net::capture::ring_buffer::bind_ring(unsigned ifindex)
 
   bool net::capture::ring_buffer::recv_v3()
   {
-    struct tpacket_block_desc*
+    struct tpacket_block_desc* const
       block_desc = static_cast<struct tpacket_block_desc*>(
                      _M_frames[_M_idx].iov_base
                    );
@@ -363,7 +364,7 @@ bool net::capture::ring_buffer::bind_ring(unsigned ifindex)
 
   bool net::capture::ring_buffer::recv_v2()
   {
-    struct tpacket2_hdr*
+    struct tpacket2_hdr* const
       hdr = static_cast<struct tpacket2_hdr*>(_M_frames[_M_idx].iov_base);
 
     // If there is a new packet...
